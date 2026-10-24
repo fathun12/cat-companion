@@ -7,28 +7,31 @@
       margin: 0;
       background: transparent;
       overflow: hidden;
+      user-select: none;
     }
-    #cat {
+    #stage {
       position: absolute;
-      left: 50px;
-      top: 50px;
-      width: 100px;
-      height: 100px;
-      background: orange;
-      border: 4px solid #333;
+    }
+    .group, .layer {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
       image-rendering: pixelated;
+      pointer-events: none;
+    }
+    .bubble {
+      animation: bubble 3s steps(6) infinite;
+    }
+    @keyframes bubble {
+      0%, 100% { transform: scale(0.85); }
+      50%      { transform: scale(1.1); }
     }
   </style>
 </head>
 <body>
-  <div id="cat"></div>
-
-  <script>
-    const { ipcRenderer } = require('electron');
-    const cat = document.getElementById('cat');
-
-    cat.addEventListener('mouseenter', () => ipcRenderer.send('set-ignore-mouse', false));
-    cat.addEventListener('mouseleave', () => ipcRenderer.send('set-ignore-mouse', true));
-  </script>
+  <div id="stage"></div>
+  <script src="pet.js"></script>
 </body>
 </html>
