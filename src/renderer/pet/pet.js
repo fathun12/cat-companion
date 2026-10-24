@@ -16,7 +16,7 @@ let bubble = null;
 let lastActivity = performance.now();
 let lastKey = -10000;
 let keyPulseEnd = 0;
-const SLEEP_AFTER_MS = 5 * 60 * 1000; // diam 5 menit -> tidur
+const SLEEP_AFTER_MS = 10 * 1000; // diam 10 detik -> tidur
 const LOVE_START_UP = 0.42; // makin besar, hati muncul makin tinggi
 const SLEEP_HEAD_DROP = 0.14; // kepala turun saat tidur (pecahan tinggi kucing)
 let sleepAmt = 0; // 0 = bangun, 1 = tidur melingkar
@@ -28,6 +28,20 @@ let hovering = false, lastHoverMove = -10000;
 let petTime = 0, purring = false, lastPurrHeart = 0;
 let dragging = false, dragMoved = false, dragSX = 0, dragSY = 0, lastSX = 0, dragVx = 0;
 let mochi = 0, mochiV = 0, tilt = 0, tiltV = 0;
+
+// Kepala/badan mengikuti kursor (pegas)
+const FOLLOW_HEAD = 3; // seberapa jauh kepala condong (satuan piksel gambar)
+const FOLLOW_BODY = 1; // seberapa jauh badan ikut
+let fx = 0, fvx = 0, fy = 0, fvy = 0, bx = 0, bvx = 0;
+
+// Teks di atas kucing (timer dan pengingat)
+const hud = document.getElementById('hud');
+let statusText = '', sayText = '', sayUntil = 0, stretchUntil = 0;
+function updateHud() {
+  const text = performance.now() < sayUntil ? sayText : statusText;
+  hud.textContent = text;
+  hud.style.display = text ? 'block' : 'none';
+}
 
 function loadImg(src) {
   return new Promise((resolve, reject) => {
@@ -71,6 +85,7 @@ async function init() {
     const [x, y] = rig.pivots[id];
     if (parts[id]) parts[id].style.transformOrigin = pct(x) + ' ' + pct(y);
   }
+  groups.head.style.transformOrigin = '50% 45%'; // kepala miring dari area leher
 
   bubble = await loadImg(BASE + rig.effects.gelembung);
   bubble.classList.add('bubble');
@@ -131,6 +146,31 @@ async function init() {
     cursorX = x;
     cursorY = y;
     lastCursorMove = performance.now();
+  });
+
+  // Klik kanan: menu Pomodoro dan pengingat
+  stage.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    ipcRenderer.send('show-menu');
+  });
+
+  // Teks timer Pomodoro dari main.js
+  ipcRenderer.on('status', (event, text) => {
+    statusText = text;
+    updateHud();
+  });
+
+  // Pengingat dari main.js: kucing bangun dan beraksi
+  ipcRenderer.on('say', (event, text, kind) => {
+    const now = performance.now();
+    sayText = text;
+    sayUntil = now + 7000;
+    updateHud();
+    setTimeout(updateHud, 7100);
+    lastActivity = now;
+    if (sleeping) setSleep(false);
+    if (kind === 'stretch') stretchUntil = now + 4000; // kucing meregang
+    else mochiV += 2.5; // kucing melonjak kecil
   });
 
   // Aktivitas dari luar (dibaca di main.js, tanpa isi ketikan)
@@ -203,7 +243,27 @@ function frame(t) {
     spawnLove();
   }
   const shake = purring ? (Math.floor(t / 70) % 2) * SCALE : 0;
-  groups.head.style.transform = `translate(${shake}px, ${drop + breath * SCALE}px)`;
+
+  // Kepala dan badan condong ke kursor dengan efek kenyal (pegas)
+  const fsec = Math.min(dt, 50) / 1000;
+  let dirX = 0, dirY = 0;
+  if (!sleeping && !dragging && t - lastCursorMove < 5000) {
+    const fcx = stage.offsetLeft + stage.offsetWidth / 2;
+    const fcy = stage.offsetTop + stage.offsetHeight / 2;
+    dirX = Math.max(-1, Math.min(1, (cursorX - fcx) / 200));
+    dirY = Math.max(-1, Math.min(1, (cursorY - fcy) / 200));
+  }
+  const spring = (pos, vel, target, k, c) => {
+    vel += ((target - pos) * k - vel * c) * fsec;
+    return [pos + vel * fsec, vel];
+  };
+  [fx, fvx] = spring(fx, fvx, dirX * FOLLOW_HEAD * SCALE, 140, 9);
+  [fy, fvy] = spring(fy, fvy, dirY * FOLLOW_HEAD * 0.6 * SCALE, 140, 9);
+  [bx, bvx] = spring(bx, bvx, dirX * FOLLOW_BODY * SCALE, 90, 8);
+  const headTilt = (fx / SCALE) * 1.5;
+  groups.head.style.transform =
+    `translate(${Math.round(fx + shake)}px, ${Math.round(fy + drop + breath * SCALE)}px) rotate(${headTilt}deg)`;
+  groups.body.style.transform = `translate(${Math.round(bx)}px, 0px)`;
 
   // Ekor goyang, bertahap per 5 derajat supaya terasa pixel art
   const amp = sleeping ? 5 : 10;
@@ -258,7 +318,8 @@ function frame(t) {
   const sec = Math.min(dt, 50) / 1000;
   dragVx *= 0.85;
   const held = dragging && dragMoved;
-  mochiV += ((held ? 0.18 : 0) - mochi) * 180 * sec - mochiV * 9 * sec;
+  const mochiTarget = held ? 0.18 : t < stretchUntil ? 0.14 : 0;
+  mochiV += (mochiTarget - mochi) * 180 * sec - mochiV * 9 * sec;
   mochi += mochiV * sec;
   const tiltTarget = held ? Math.max(-15, Math.min(15, dragVx * 0.5)) : 0;
   tiltV += (tiltTarget - tilt) * 140 * sec - tiltV * 8 * sec;

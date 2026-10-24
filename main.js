@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, screen, globalShortcut } = require('electron');
 const path = require('path');
 const { uIOhook } = require('uiohook-napi');
+const timers = require('./src/main/services/timers');
 
 let win;
 
@@ -83,6 +84,9 @@ app.whenReady().then(() => {
     }, 16);
   });
   ipcMain.on('drag-end', () => clearInterval(dragTimer));
+
+  // Pomodoro, pengingat, dan menu klik kanan
+  timers.init(win);
 });
 
 app.on('will-quit', () => uIOhook.stop());
