@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { ipcRenderer } = require('electron');
+const Look = require('./look.js');
 
 const BASE = '../../../assets/';
 const rig = JSON.parse(
@@ -185,7 +186,17 @@ async function init() {
     if (type === 'scroll') keyPulseEnd = now + 110;
   });
 
+  // Terapkan tampilan tersimpan (warna dan pola), lalu dengarkan perubahan dari panel
+  const saved = await ipcRenderer.invoke('look-get');
+  await applyLook(saved || Look.PRESETS.hitam);
+  ipcRenderer.on('look', (event, look) => applyLook(look));
+
   requestAnimationFrame(frame);
+}
+
+async function applyLook(look) {
+  const urls = await Look.recolorAll(look);
+  for (const id in urls) parts[id].src = urls[id];
 }
 
 function setSleep(value) {

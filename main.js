@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain, screen, globalShortcut } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const { uIOhook } = require('uiohook-napi');
 const timers = require('./src/main/services/timers');
 
@@ -87,6 +88,39 @@ app.whenReady().then(() => {
 
   // Pomodoro, pengingat, dan menu klik kanan
   timers.init(win);
+
+  // Tampilan kucing (warna dan pola) disimpan di look.json
+  const lookFile = path.join(app.getPath('userData'), 'look.json');
+  ipcMain.handle('look-get', () => {
+    try {
+      return JSON.parse(fs.readFileSync(lookFile, 'utf8'));
+    } catch (e) {
+      return null;
+    }
+  });
+  ipcMain.on('look-set', (event, look) => {
+    try {
+      fs.writeFileSync(lookFile, JSON.stringify(look, null, 2));
+    } catch (e) {}
+    if (win && !win.isDestroyed()) win.webContents.send('look', look);
+  });
+
+  // Jendela kustomisasi (dibuka dari menu klik kanan)
+  let panel = null;
+  ipcMain.on('open-panel', () => {
+    if (panel && !panel.isDestroyed()) {
+      panel.focus();
+      return;
+    }
+    panel = new BrowserWindow({
+      width: 480,
+      height: 700,
+      title: 'Kustomisasi Kucing',
+      autoHideMenuBar: true,
+      webPreferences: { nodeIntegration: true, contextIsolation: false },
+    });
+    panel.loadFile(path.join(__dirname, 'src/renderer/panel/index.html'));
+  });
 });
 
 app.on('will-quit', () => uIOhook.stop());

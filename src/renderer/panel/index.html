@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Kustomisasi Kucing</title>
+  <style>
+    body { font-family: "Segoe UI", sans-serif; margin: 0; padding: 16px; background: #f4f1ec; color: #222; }
+    h1 { font-size: 16px; margin: 0 0 12px; }
+    h2 { font-size: 12px; margin: 18px 0 8px; text-transform: uppercase; letter-spacing: 0.05em; color: #666; }
+    #previewBox {
+      display: flex; justify-content: center; padding: 12px; border-radius: 8px;
+      background: repeating-conic-gradient(#ddd 0% 25%, #eee 0% 50%) 50% / 20px 20px;
+    }
+    #preview { width: 256px; height: 256px; image-rendering: pixelated; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; }
+    button { padding: 6px 12px; border: 1px solid #bbb; background: #fff; border-radius: 6px; cursor: pointer; font-size: 13px; }
+    button:hover { background: #eee; }
+    label { display: flex; align-items: center; justify-content: space-between; margin: 6px 0; font-size: 13px; }
+    input[type=color] { width: 56px; height: 28px; border: none; background: none; cursor: pointer; }
+    select { padding: 4px 8px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <h1>Kustomisasi Kucing</h1>
+
+  <div id="previewBox"><canvas id="preview"></canvas></div>
+
+  <h2>Preset</h2>
+  <div class="row" id="presets"></div>
+
+  <h2>Warna</h2>
+  <label>Warna badan <input type="color" id="cBody" /></label>
+  <label>Garis tepi <input type="color" id="cOutline" /></label>
+  <label>Warna pola <input type="color" id="cP1" /></label>
+  <label>Warna pola 2 (untuk calico) <input type="color" id="cP2" /></label>
+
+  <h2>Pola</h2>
+  <label>
+    Jenis pola
+    <select id="pattern">
+      <option value="polos">Polos</option>
+      <option value="belang">Belang</option>
+      <option value="tuxedo">Tuxedo</option>
+      <option value="calico">Calico</option>
+    </select>
+  </label>
+
+  <script src="main.js"></script>
+</body>
+</html>

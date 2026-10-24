@@ -176,9 +176,9 @@ Efek yang dibuat lewat kode (tanpa digambar):
 | 2 | Jendela transparan, click-through, kotak placeholder oranye | **Selesai** (dicek pemilik, berjalan) |
 | 3 | Rig dan animasi prosedural (napas, ekor, telinga, kedip, hati, zzz) | **Selesai**, berjalan baik; tidur melingkar lewat kode (kepala turun) |
 | 4 | Otak kucing (state machine) + input global (`uiohook-napi`) | **Sebagian selesai**: input global, reaksi mengetik, tidur otomatis berjalan. State machine formal (`brain/`) belum, logikanya masih berupa flag di `pet.js` |
-| 5 | Interaksi mouse (mata ikut kursor, mochi, elus, berburu kursor, scroll) | Belum |
-| 6 | Pomodoro, pengingat peregangan/minum/pesan, catatan sematan, `electron-store` | Belum |
-| 7 | Kustomisasi kucing (palette swap, pola, panel pengaturan + pratinjau) | Belum |
+| 5 | Interaksi mouse (mata ikut kursor, mochi, elus, berburu kursor, scroll) | **Sebagian selesai**: mata + kepala/badan kenyal ikut kursor, drag mochi, elus dan dengkur, scroll menggerakkan tangan. Belum: berburu kursor, gulungan tisu, mode panas (butuh gambar tisu dan uap) |
+| 6 | Pomodoro, pengingat peregangan/minum/pesan, catatan sematan, `electron-store` | **Sebagian selesai**: Pomodoro, pengingat peregangan dan minum, menu klik kanan, simpan pengaturan (JSON sendiri, bukan `electron-store`). Belum: pesan pengingat kustom, catatan sematan |
+| 7 | Kustomisasi kucing (palette swap, pola, panel pengaturan + pratinjau) | **Selesai (dasar)**: panel kustomisasi, 5 preset, 4 warna, 4 pola prosedural, tersimpan. Belum: editor catatan dan pesan di panel |
 | 8 | Polish: tray, auto-start Windows, multi-monitor, mode mengintip, cek CPU/RAM | Belum |
 | 9 | Packaging dengan `electron-builder`, uji di komputer lain, README | Belum |
 

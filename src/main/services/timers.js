@@ -145,6 +145,8 @@ function buildMenu() {
     radio('Pengingat peregangan', 'stretchMin', [0, 1, 30, 45, 60], every),
     radio('Pengingat minum', 'waterMin', [0, 1, 30, 45, 60], every),
     { type: 'separator' },
+    { label: 'Kustomisasi kucing...', click: () => ipcMain.emit('open-panel') },
+    { type: 'separator' },
     { label: 'Keluar', click: () => app.quit() },
   ]);
 }
