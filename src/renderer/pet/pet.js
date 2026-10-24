@@ -22,6 +22,13 @@ const SLEEP_HEAD_DROP = 0.14; // kepala turun saat tidur (pecahan tinggi kucing)
 let sleepAmt = 0; // 0 = bangun, 1 = tidur melingkar
 let prevT = 0;
 
+const WIN = 260; // harus sama dengan WIN di main.js
+let cursorX = 0, cursorY = 0, lastCursorMove = -10000;
+let hovering = false, lastHoverMove = -10000;
+let petTime = 0, purring = false, lastPurrHeart = 0;
+let dragging = false, dragMoved = false, dragSX = 0, dragSY = 0, lastSX = 0, dragVx = 0;
+let mochi = 0, mochiV = 0, tilt = 0, tiltV = 0;
+
 function loadImg(src) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -45,8 +52,9 @@ async function init() {
   const px = size * SCALE;
   stage.style.width = px + 'px';
   stage.style.height = px + 'px';
-  stage.style.left = (200 - px) / 2 + 'px';
-  stage.style.top = (200 - px) / 2 + 'px';
+  stage.style.left = (WIN - px) / 2 + 'px';
+  stage.style.top = (WIN - px) / 2 + 'px';
+  stage.style.transformOrigin = '50% 25%';
 
   rig.layers.forEach((l, i) => {
     if (!groups[l.group]) {
@@ -71,12 +79,58 @@ async function init() {
   stage.appendChild(bubble);
 
   // Hanya tangkap klik saat kursor di atas kucing
-  stage.addEventListener('mouseenter', () => ipcRenderer.send('set-ignore-mouse', false));
-  stage.addEventListener('mouseleave', () => ipcRenderer.send('set-ignore-mouse', true));
+  stage.addEventListener('mouseenter', () => {
+    hovering = true;
+    ipcRenderer.send('set-ignore-mouse', false);
+  });
+  stage.addEventListener('mouseleave', () => {
+    hovering = false;
+    if (!dragging) ipcRenderer.send('set-ignore-mouse', true);
+  });
+  stage.addEventListener('mousemove', () => {
+    lastHoverMove = performance.now();
+    lastActivity = lastHoverMove;
+  });
 
-  // Klik kucing: keluarkan hati
+  // Klik kucing (bukan drag): keluarkan hati
   stage.addEventListener('click', () => {
-    if (!sleeping) spawnLove();
+    if (!sleeping && !dragMoved) spawnLove();
+  });
+
+  // Drag kucing
+  stage.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    dragging = true;
+    dragMoved = false;
+    dragSX = lastSX = e.screenX;
+    dragSY = e.screenY;
+  });
+  window.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    if (!dragMoved) {
+      if (Math.hypot(e.screenX - dragSX, e.screenY - dragSY) < 5) return;
+      dragMoved = true;
+      lastActivity = performance.now();
+      if (sleeping) setSleep(false);
+      ipcRenderer.send('drag-start');
+    }
+    dragVx = e.screenX - lastSX;
+    lastSX = e.screenX;
+  });
+  window.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    if (dragMoved) {
+      ipcRenderer.send('drag-end');
+      if (!hovering) ipcRenderer.send('set-ignore-mouse', true);
+    }
+  });
+
+  // Posisi kursor dari main.js
+  ipcRenderer.on('cursor', (event, x, y) => {
+    cursorX = x;
+    cursorY = y;
+    lastCursorMove = performance.now();
   });
 
   // Aktivitas dari luar (dibaca di main.js, tanpa isi ketikan)
@@ -88,6 +142,7 @@ async function init() {
       lastKey = now;
       keyPulseEnd = now + 90;
     }
+    if (type === 'scroll') keyPulseEnd = now + 110;
   });
 
   requestAnimationFrame(frame);
@@ -135,7 +190,20 @@ function frame(t) {
   sleepAmt += Math.sign(target - sleepAmt) * Math.min(Math.abs(target - sleepAmt), dt / 700);
   const dropPx = Math.round((stage.offsetHeight * SLEEP_HEAD_DROP) / SCALE);
   const drop = Math.round(sleepAmt * dropPx) * SCALE;
-  groups.head.style.transform = `translate(0px, ${drop + breath * SCALE}px)`;
+  // Elus: kursor digerakkan di atas kucing cukup lama -> mendengkur
+  if (hovering && !dragging && t - lastHoverMove < 250) petTime += dt;
+  else petTime = Math.max(0, petTime - dt * 2);
+  if (sleeping && petTime > 1500) {
+    setSleep(false);
+    lastActivity = t;
+  }
+  purring = !sleeping && petTime > 1000;
+  if (purring && t - lastPurrHeart > 1400) {
+    lastPurrHeart = t;
+    spawnLove();
+  }
+  const shake = purring ? (Math.floor(t / 70) % 2) * SCALE : 0;
+  groups.head.style.transform = `translate(${shake}px, ${drop + breath * SCALE}px)`;
 
   // Ekor goyang, bertahap per 5 derajat supaya terasa pixel art
   const amp = sleeping ? 5 : 10;
@@ -155,7 +223,7 @@ function frame(t) {
     blinkEnd = t + 160;
     nextBlink = t + rand(2500, 6000);
   }
-  const closed = sleeping || t < blinkEnd;
+  const closed = sleeping || purring || t < blinkEnd;
   parts.mata.style.display = closed ? 'none' : '';
   parts.pupil.style.display = closed ? 'none' : '';
   parts.mata_tidur.style.display = closed ? '' : 'none';
@@ -166,13 +234,36 @@ function frame(t) {
     nextLook = t + rand(2000, 5000);
   }
   const typing = !sleeping && t - lastKey < 1500;
-  parts.pupil.style.transform = `translate(${lookX * SCALE}px, ${typing ? SCALE : 0}px)`;
+  const following = !sleeping && t - lastCursorMove < 5000;
+  let ex = lookX;
+  let ey = 0;
+  if (typing) {
+    ey = 1;
+  } else if (following) {
+    const cx = stage.offsetLeft + stage.offsetWidth / 2;
+    const cy = stage.offsetTop + stage.offsetHeight / 2;
+    ex = Math.abs(cursorX - cx) > 30 ? Math.sign(cursorX - cx) : 0;
+    ey = Math.abs(cursorY - cy) > 30 ? Math.sign(cursorY - cy) : 0;
+  }
+  parts.pupil.style.transform = `translate(${ex * SCALE}px, ${ey * SCALE}px)`;
 
   // Tangan menekan keyboard setiap ada ketikan
   parts.tangan.style.transform = `translate(0px, ${t < keyPulseEnd ? SCALE : 0}px)`;
 
   // Tidur kalau lama tidak ada aktivitas
   if (!sleeping && t - lastActivity > SLEEP_AFTER_MS) setSleep(true);
+
+  // Mochi: saat diangkat badan memanjang, mengayun mengikuti gerakan,
+  // lalu memantul kembali saat dilepas
+  const sec = Math.min(dt, 50) / 1000;
+  dragVx *= 0.85;
+  const held = dragging && dragMoved;
+  mochiV += ((held ? 0.18 : 0) - mochi) * 180 * sec - mochiV * 9 * sec;
+  mochi += mochiV * sec;
+  const tiltTarget = held ? Math.max(-15, Math.min(15, dragVx * 0.5)) : 0;
+  tiltV += (tiltTarget - tilt) * 140 * sec - tiltV * 8 * sec;
+  tilt += tiltV * sec;
+  stage.style.transform = `rotate(${tilt}deg) scale(${1 - mochi * 0.6}, ${1 + mochi})`;
 
   requestAnimationFrame(frame);
 }

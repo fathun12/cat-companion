@@ -7,11 +7,13 @@ let win;
 app.whenReady().then(() => {
   const { width, height } = screen.getPrimaryDisplay().workAreaSize;
 
+  const WIN = 260;
+
   win = new BrowserWindow({
-    width: 200,
-    height: 200,
-    x: width - 250,
-    y: height - 220,
+    width: WIN,
+    height: WIN,
+    x: width - WIN - 50,
+    y: height - WIN - 20,
     transparent: true,
     frame: false,
     alwaysOnTop: true,
@@ -55,6 +57,32 @@ app.whenReady().then(() => {
   uIOhook.on('wheel', () => notify('scroll', 100));
   uIOhook.on('click', () => notify('click', 100));
   uIOhook.start();
+
+  // Posisi kursor relatif terhadap jendela (hanya koordinat, untuk mata kucing)
+  let lastCursor = { x: -1, y: -1 };
+  setInterval(() => {
+    if (!win || win.isDestroyed()) return;
+    const p = screen.getCursorScreenPoint();
+    if (p.x === lastCursor.x && p.y === lastCursor.y) return;
+    lastCursor = p;
+    const b = win.getBounds();
+    win.webContents.send('cursor', p.x - b.x, p.y - b.y);
+  }, 50);
+
+  // Drag jendela kucing
+  let dragTimer = null;
+  ipcMain.on('drag-start', () => {
+    const c = screen.getCursorScreenPoint();
+    const [wx, wy] = win.getPosition();
+    const ox = c.x - wx;
+    const oy = c.y - wy;
+    clearInterval(dragTimer);
+    dragTimer = setInterval(() => {
+      const p = screen.getCursorScreenPoint();
+      win.setBounds({ x: p.x - ox, y: p.y - oy, width: WIN, height: WIN });
+    }, 16);
+  });
+  ipcMain.on('drag-end', () => clearInterval(dragTimer));
 });
 
 app.on('will-quit', () => uIOhook.stop());
