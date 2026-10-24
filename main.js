@@ -89,55 +89,7 @@ app.whenReady().then(() => {
     dragTimer = null;
   });
 
-  // Berburu kursor: gerakkan mouse sangat cepat -> kucing mengejar, lalu menerkam
-  const HUNT_SPEED = 1600; // piksel per detik; kecilkan kalau terlalu sulit memicunya
-  let hunting = false;
-  let huntUntil = 0;
-  let huntCooldown = 0;
-  let lastPt = screen.getCursorScreenPoint();
-  let lastPtTime = Date.now();
-
-  setInterval(() => {
-    if (!win || win.isDestroyed()) return;
-    const now = Date.now();
-    const p = screen.getCursorScreenPoint();
-    const speed = (Math.hypot(p.x - lastPt.x, p.y - lastPt.y) / (now - lastPtTime)) * 1000;
-    lastPt = p;
-    lastPtTime = now;
-    if (!hunting && !dragTimer && speed > HUNT_SPEED && now > huntCooldown && timers.huntEnabled()) {
-      hunting = true;
-      huntUntil = now + 5000;
-      win.webContents.send('hunt', true, false);
-    }
-  }, 80);
-
-  setInterval(() => {
-    if (!hunting || !win || win.isDestroyed()) return;
-    const now = Date.now();
-    if (dragTimer) {
-      hunting = false;
-      win.webContents.send('hunt', false, false);
-      return;
-    }
-    const p = screen.getCursorScreenPoint();
-    const b = win.getBounds();
-    const dx = p.x - (b.x + b.width / 2);
-    const dy = p.y - (b.y + b.height * 0.6);
-    const dist = Math.hypot(dx, dy);
-    if (dist < 50 || now > huntUntil) {
-      hunting = false;
-      huntCooldown = now + 8000;
-      win.webContents.send('hunt', false, dist < 50);
-      return;
-    }
-    const step = Math.min(dist, Math.min(16, Math.max(5, dist * 0.05)));
-    win.setBounds({
-      x: Math.round(b.x + (dx / dist) * step),
-      y: Math.round(b.y + (dy / dist) * step),
-      width: WIN,
-      height: WIN,
-    });
-  }, 16);
+  // (Bermain dengan kursor ada di pet.js; jendela tidak lagi berpindah sendiri)
 
   // Pomodoro, pengingat, dan menu klik kanan
   timers.init(win);

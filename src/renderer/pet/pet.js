@@ -34,7 +34,10 @@ let mochi = 0, mochiV = 0, tilt = 0, tiltV = 0;
 const FOLLOW_HEAD = 3; // seberapa jauh kepala condong (satuan piksel gambar)
 const FOLLOW_BODY = 1; // seberapa jauh badan ikut
 let fx = 0, fvx = 0, fy = 0, fvy = 0, bx = 0, bvx = 0;
-let hunting = false, huntDir = 0;
+// Bermain dengan kursor
+const PLAY_SPEED = 700; // piksel/detik; kecilkan kalau sulit terpicu, besarkan kalau terlalu mudah
+const PLAY_RADIUS = 140; // jarak kursor dari kucing agar dianggap "di depan kucing"
+let playing = false, playUntil = 0, playAmt = 0, playEnabled = true;
 
 // Teks di atas kucing (timer dan pengingat)
 const hud = document.getElementById('hud');
@@ -145,9 +148,24 @@ async function init() {
 
   // Posisi kursor dari main.js
   ipcRenderer.on('cursor', (event, x, y) => {
+    const now = performance.now();
+    const dtc = now - lastCursorMove;
+    const speed = dtc > 0 && dtc < 300 ? (Math.hypot(x - cursorX, y - cursorY) / dtc) * 1000 : 0;
     cursorX = x;
     cursorY = y;
-    lastCursorMove = performance.now();
+    lastCursorMove = now;
+
+    // Kursor cepat di dekat kucing -> kucing bermain
+    const cx = stage.offsetLeft + stage.offsetWidth / 2;
+    const cy = stage.offsetTop + stage.offsetHeight / 2;
+    const near = Math.hypot(x - cx, y - cy) < PLAY_RADIUS;
+    const need = hovering ? PLAY_SPEED * 1.8 : PLAY_SPEED; // mengelus tidak dianggap bermain
+    if (playEnabled && near && !dragging && !purring && speed > need) {
+      playing = true;
+      playUntil = now + 1500;
+      lastActivity = now;
+      if (sleeping) setSleep(false);
+    }
   });
 
   // Klik kanan: menu Pomodoro dan pengingat
@@ -162,16 +180,9 @@ async function init() {
     updateHud();
   });
 
-  // Berburu kursor dari main.js: on = mulai mengejar, caught = berhasil menerkam
-  ipcRenderer.on('hunt', (event, on, caught) => {
-    hunting = on;
-    lastActivity = performance.now();
-    if (on && sleeping) setSleep(false);
-    if (!on && caught) {
-      mochiV += 4;
-      spawnLove();
-    }
-  });
+  // Pengaturan "Bermain dengan kursor" (menu klik kanan)
+  ipcRenderer.invoke('play-get').then((v) => (playEnabled = v));
+  ipcRenderer.on('play-enabled', (event, v) => (playEnabled = v));
 
   // Pengingat dari main.js: kucing bangun dan beraksi
   ipcRenderer.on('say', (event, text, kind) => {
@@ -253,6 +264,12 @@ function frame(t) {
   sleepAmt += Math.sign(target - sleepAmt) * Math.min(Math.abs(target - sleepAmt), dt / 700);
   const dropPx = Math.round((stage.offsetHeight * SLEEP_HEAD_DROP) / SCALE);
   const drop = Math.round(sleepAmt * dropPx) * SCALE;
+
+  // Bermain: menunduk, badan geol-geol, kepala ikut sedikit
+  if (playing && (t > playUntil || sleeping || dragging)) playing = false;
+  playAmt += ((playing ? 1 : 0) - playAmt) * Math.min(1, dt / 120);
+  const crouchPx = Math.round((playAmt * stage.offsetHeight * 0.06) / SCALE) * SCALE;
+  const wig = Math.round(Math.sin(t / 45) * 2 * playAmt) * SCALE;
   // Elus: kursor digerakkan di atas kucing cukup lama -> mendengkur
   if (hovering && !dragging && t - lastHoverMove < 250) petTime += dt;
   else petTime = Math.max(0, petTime - dt * 2);
@@ -260,7 +277,7 @@ function frame(t) {
     setSleep(false);
     lastActivity = t;
   }
-  purring = !sleeping && petTime > 1000;
+  purring = !sleeping && !playing && petTime > 1000;
   if (purring && t - lastPurrHeart > 1400) {
     lastPurrHeart = t;
     spawnLove();
@@ -285,12 +302,13 @@ function frame(t) {
   [bx, bvx] = spring(bx, bvx, dirX * FOLLOW_BODY * SCALE, 90, 8);
   const headTilt = (fx / SCALE) * 1.5;
   groups.head.style.transform =
-    `translate(${Math.round(fx + shake)}px, ${Math.round(fy + drop + breath * SCALE)}px) rotate(${headTilt}deg)`;
-  groups.body.style.transform = `translate(${Math.round(bx)}px, 0px)`;
+    `translate(${Math.round(fx + shake + wig * 0.5)}px, ${Math.round(fy + drop + crouchPx + breath * SCALE)}px) rotate(${headTilt}deg)`;
+  groups.body.style.transform = `translate(${Math.round(bx) + wig}px, 0px)`;
 
   // Ekor goyang, bertahap per 5 derajat supaya terasa pixel art
-  const amp = sleeping ? 5 : 10;
-  const tail = Math.round((Math.sin((s * 2 * Math.PI) / 2.6) * amp) / 5) * 5;
+  const tailPeriod = 2.6 - 2.25 * playAmt; // makin semangat makin cepat
+  const amp = sleeping ? 5 : 10 + 15 * playAmt;
+  const tail = Math.round((Math.sin((s * 2 * Math.PI) / tailPeriod) * amp) / 5) * 5;
   parts.ekor.style.transform = `rotate(${tail}deg)`;
 
   // Kuping berkedut sesekali
@@ -341,15 +359,11 @@ function frame(t) {
   const sec = Math.min(dt, 50) / 1000;
   dragVx *= 0.85;
   const held = dragging && dragMoved;
-  const huntBounce = hunting ? 0.07 + 0.06 * Math.sin(t / 60) : 0;
-  const mochiTarget = held ? 0.18 : t < stretchUntil ? 0.14 : huntBounce;
+  const mochiTarget = held ? 0.18 : t < stretchUntil ? 0.14 : -0.1 * playAmt;
   mochiV += (mochiTarget - mochi) * 180 * sec - mochiV * 9 * sec;
   mochi += mochiV * sec;
-  if (hunting) {
-    huntDir = Math.sign(cursorX - (stage.offsetLeft + stage.offsetWidth / 2));
-    lastActivity = t;
-  }
-  const tiltTarget = held ? Math.max(-15, Math.min(15, dragVx * 0.5)) : hunting ? huntDir * 8 : 0;
+  if (playing) lastActivity = t;
+  const tiltTarget = held ? Math.max(-15, Math.min(15, dragVx * 0.5)) : 0;
   tiltV += (tiltTarget - tilt) * 140 * sec - tiltV * 8 * sec;
   tilt += tiltV * sec;
   stage.style.transform = `rotate(${tilt}deg) scale(${1 - mochi * 0.6}, ${1 + mochi})`;

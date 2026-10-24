@@ -146,12 +146,13 @@ function buildMenu() {
     radio('Pengingat minum', 'waterMin', [0, 1, 30, 45, 60], every),
     { type: 'separator' },
     {
-      label: 'Berburu kursor',
+      label: 'Bermain dengan kursor',
       type: 'checkbox',
       checked: settings.hunt,
       click: (item) => {
         settings.hunt = item.checked;
         save();
+        send('play-enabled', item.checked);
       },
     },
     { label: 'Kustomisasi kucing...', click: () => ipcMain.emit('open-panel') },
@@ -166,6 +167,7 @@ function init(browserWindow) {
   schedule();
   setInterval(tick, 1000);
   ipcMain.on('show-menu', () => buildMenu().popup({ window: win }));
+  ipcMain.handle('play-get', () => settings.hunt);
 }
 
 module.exports = { init, huntEnabled: () => settings.hunt };

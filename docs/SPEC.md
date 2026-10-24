@@ -176,7 +176,7 @@ Efek yang dibuat lewat kode (tanpa digambar):
 | 2 | Jendela transparan, click-through, kotak placeholder oranye | **Selesai** (dicek pemilik, berjalan) |
 | 3 | Rig dan animasi prosedural (napas, ekor, telinga, kedip, hati, zzz) | **Selesai**, berjalan baik; tidur melingkar lewat kode (kepala turun) |
 | 4 | Otak kucing (state machine) + input global (`uiohook-napi`) | **Sebagian selesai**: input global, reaksi mengetik, tidur otomatis berjalan. State machine formal (`brain/`) belum, logikanya masih berupa flag di `pet.js` |
-| 5 | Interaksi mouse (mata ikut kursor, mochi, elus, berburu kursor, scroll) | **Sebagian selesai**: mata + kepala/badan kenyal ikut kursor, drag mochi, elus dan dengkur, scroll menggerakkan tangan. Belum: berburu kursor, gulungan tisu, mode panas (butuh gambar tisu dan uap) |
+| 5 | Interaksi mouse (mata ikut kursor, mochi, elus, berburu kursor, scroll) | **Sebagian selesai**: mata + kepala/badan kenyal ikut kursor, drag mochi, elus dan dengkur, scroll menggerakkan tangan, berburu kursor (mouse digerakkan lebih dari `HUNT_SPEED` di `main.js` -> jendela kucing berjalan mengejar kursor lalu menerkam; cooldown 8 detik; bisa dimatikan di menu klik kanan). Belum: gulungan tisu, mode panas (butuh gambar tisu dan uap) |
 | 6 | Pomodoro, pengingat peregangan/minum/pesan, catatan sematan, `electron-store` | **Sebagian selesai**: Pomodoro, pengingat peregangan dan minum, menu klik kanan, simpan pengaturan (JSON sendiri, bukan `electron-store`). Belum: pesan pengingat kustom, catatan sematan |
 | 7 | Kustomisasi kucing (palette swap, pola, panel pengaturan + pratinjau) | **Selesai (dasar)**: panel kustomisasi, 5 preset, 4 warna, 4 pola prosedural, tersimpan. Belum: editor catatan dan pesan di panel |
 | 8 | Polish: tray, auto-start Windows, multi-monitor, mode mengintip, cek CPU/RAM | Belum |
@@ -314,7 +314,7 @@ Perilaku yang sudah jalan:
 - Klik kucing: hati naik dari atas kepala (`LOVE_START_UP`).
 - Mengetik di aplikasi mana pun: tangan bergerak per ketikan, pupil melihat ke bawah.
 - Tidak ada aktivitas selama `SLEEP_AFTER_MS` (5 menit): tidur melingkar (kepala turun ke badan lewat `SLEEP_HEAD_DROP`, mata tidur, gelembung). Aktivitas keyboard, klik, atau scroll membangunkan. Gerak mouse saja tidak.
-- Posisi hati dan gelembung bergantung pada posisi gambar di kanvas pemilik (keduanya diekspor di tengah kanvas, sehingga hati dipindah lewat kode).
+- Posisi hati dan gelembung bergantung pada posisi gambar di kanvas pemilik (keduanya diekspor di tengah kanvas, sehingga hati dipindah lewat kode). - Pola digambar lewat kode. Posisinya dihitung otomatis dari kotak pembatas piksel tiap layer (kepala dan badan punya titik tengah sendiri karena kucing sedikit serong); geser manual lewat `CX_HEAD` dan `CX_BODY` di `look.js`.
 
 Keputusan yang menyimpang dari rencana awal:
 - Struktur `src/renderer/pet/core|brain|animation` (file TypeScript kosong) belum dipakai. Sementara semua di `pet.js` (JavaScript). Pecah ke modul saat file membesar (mulai Phase 5/6) atau saat migrasi ke TypeScript.
