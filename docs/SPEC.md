@@ -74,6 +74,28 @@ foreach ($p in $files) {
 10. Setiap akhir phase, beri perintah commit Git (`git add .` lalu `git commit -m "..."`).
 11. Akhiri tiap langkah dengan kriteria "berhasil kalau...", dan beri tahu cara menutup atau membatalkan kalau relevan.
 12. Satu pertanyaan klarifikasi maksimal per giliran. Lebih baik berasumsi dan menyebutkan asumsinya.
+13. **Kalau AI butuh melihat isi file**, jangan minta pemilik membuka dan menyalin manual, dan jangan minta screenshot. Buatkan perintah PowerShell (versi 5.1) yang menyalin isi file ke clipboard, supaya pemilik tinggal menjalankannya lalu menempel (Ctrl+V) ke chat. Jalankan dari folder `D:\Projects\cat-companion`.
+
+Satu file:
+
+```powershell
+Get-Content -Raw -Encoding UTF8 "main.js" | Set-Clipboard
+```
+
+Beberapa file sekaligus (tiap file diberi judul `=== nama ===`, ganti isi daftarnya):
+
+```powershell
+$files = @("main.js", "src\renderer\pet\index.html")
+($files | ForEach-Object { "=== $_ ===`r`n" + (Get-Content -Raw -Encoding UTF8 $_) }) -join "`r`n`r`n" | Set-Clipboard
+```
+
+Untuk output error dari sebuah perintah (ganti `npm start` sesuai kebutuhan):
+
+```powershell
+npm start 2>&1 | Out-String | Set-Clipboard
+```
+
+Hanya minta file yang benar-benar perlu dilihat, supaya token hemat.
 
 ---
 
