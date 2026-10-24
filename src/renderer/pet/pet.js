@@ -16,8 +16,11 @@ let bubble = null;
 let lastActivity = performance.now();
 let lastKey = -10000;
 let keyPulseEnd = 0;
-const SLEEP_AFTER_MS = 10 * 1000; // TES: 10 detik
+const SLEEP_AFTER_MS = 5 * 60 * 1000; // diam 5 menit -> tidur
 const LOVE_START_UP = 0.42; // makin besar, hati muncul makin tinggi
+const SLEEP_HEAD_DROP = 0.14; // kepala turun saat tidur (pecahan tinggi kucing)
+let sleepAmt = 0; // 0 = bangun, 1 = tidur melingkar
+let prevT = 0;
 
 function loadImg(src) {
   return new Promise((resolve, reject) => {
@@ -124,7 +127,15 @@ function frame(t) {
   // Napas: kepala turun 1 piksel, bergantian
   const breathPeriod = sleeping ? 4.5 : 3.2;
   const breath = Math.round((Math.sin((s * 2 * Math.PI) / breathPeriod) + 1) / 2);
-  groups.head.style.transform = `translate(0px, ${breath * SCALE}px)`;
+
+  // Transisi tidur: kepala turun ke badan, bergerak per piksel
+  const dt = Math.min(t - prevT, 100);
+  prevT = t;
+  const target = sleeping ? 1 : 0;
+  sleepAmt += Math.sign(target - sleepAmt) * Math.min(Math.abs(target - sleepAmt), dt / 700);
+  const dropPx = Math.round((stage.offsetHeight * SLEEP_HEAD_DROP) / SCALE);
+  const drop = Math.round(sleepAmt * dropPx) * SCALE;
+  groups.head.style.transform = `translate(0px, ${drop + breath * SCALE}px)`;
 
   // Ekor goyang, bertahap per 5 derajat supaya terasa pixel art
   const amp = sleeping ? 5 : 10;

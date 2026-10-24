@@ -1,8 +1,8 @@
-# SPEC.md: Cat Companion (desktop pet kucing piksel)
+﻿# SPEC.md: Cat Companion (desktop pet kucing piksel)
 
 Dokumen serah-terima. AI mana pun yang melanjutkan proyek ini WAJIB membaca seluruh file ini dulu, terutama bagian **2. Cara kerja dengan pemilik**.
 
-Terakhir diperbarui: 24 Oktober 2026.
+Terakhir diperbarui: 25 Oktober 2026.
 
 ---
 
@@ -172,10 +172,10 @@ Efek yang dibuat lewat kode (tanpa digambar):
 | Phase | Isi | Status |
 |---|---|---|
 | 0 | Persiapan: Node, Git, VS Code, Electron, jendela "Hello" | **Selesai** (commit "Phase 0: setup awal") |
-| 1 | Desain karakter di LibreSprite (aset sesuai bagian 4) | **Sedang dikerjakan pemilik** (offline, tanpa AI) |
+| 1 | Desain karakter di LibreSprite (aset sesuai bagian 4) | **Selesai (aset dasar)**; pemilik akan menambah pose mengetik di keyboard nanti |
 | 2 | Jendela transparan, click-through, kotak placeholder oranye | **Selesai** (dicek pemilik, berjalan) |
-| 3 | Rig dan animasi prosedural (napas, ekor, telinga, kedip, hati, zzz) | Belum |
-| 4 | Otak kucing (state machine) + input global (`uiohook-napi`) | Belum |
+| 3 | Rig dan animasi prosedural (napas, ekor, telinga, kedip, hati, zzz) | **Selesai**, berjalan baik; tidur melingkar lewat kode (kepala turun) |
+| 4 | Otak kucing (state machine) + input global (`uiohook-napi`) | **Sebagian selesai**: input global, reaksi mengetik, tidur otomatis berjalan. State machine formal (`brain/`) belum, logikanya masih berupa flag di `pet.js` |
 | 5 | Interaksi mouse (mata ikut kursor, mochi, elus, berburu kursor, scroll) | Belum |
 | 6 | Pomodoro, pengingat peregangan/minum/pesan, catatan sematan, `electron-store` | Belum |
 | 7 | Kustomisasi kucing (palette swap, pola, panel pengaturan + pratinjau) | Belum |
@@ -290,117 +290,46 @@ Aturan struktur:
 
 ---
 
-## 7. Keadaan kode saat ini (snapshot)
+## 7. Keadaan kode saat ini
 
-Lingkungan: Node `v22.17.1`, Git `2.54.0`, Electron `^45.0.0`, branch `master`.
+Lingkungan: Node `v22.17.1`, Git `2.54.0`, Electron `^45.0.0`, `uiohook-napi`, branch `master`. Cara jalan: `npm start`. Keluar: Ctrl+Shift+Q.
 
-Commit yang sudah ada:
-1. "Phase 0: setup awal"
-2. (Phase 2: jendela transparan + struktur folder). Cek `git log` untuk memastikan; commit ini dijalankan pemilik setelah Phase 2.
+Sumber kebenaran adalah file di repo (snapshot kode tidak disalin ke sini agar tidak usang). Untuk melihat file, pakai perintah clipboard di bagian 2 aturan 13.
 
-### `main.js` (root)
+File yang aktif dipakai:
+- `main.js` (root): jendela transparan 200x200 di pojok kanan bawah, click-through, global shortcut keluar, pembaca input global (`uIOhook`) yang mengirim event IPC `activity` dengan nilai `key`, `mouse`, `scroll`, atau `click`. Tidak ada isi ketikan yang dibaca.
+- `src/renderer/pet/index.html`: panggung (`#stage`), CSS layer, animasi CSS gelembung.
+- `src/renderer/pet/pet.js`: seluruh logika kucing saat ini (rig, animasi, reaksi, tidur). Sengaja satu file dulu.
+- `assets/cat/rig.json`: daftar layer, grup (`body`/`head`), titik pivot (ekor, kuping, gelembung), dan lokasi efek.
 
-```js
-const { app, BrowserWindow, ipcMain, screen, globalShortcut } = require('electron');
-const path = require('path');
+Aset yang sudah ada (PNG, kanvas penuh sama ukuran, latar transparan, semua bertumpuk di posisi 0,0):
+- `assets/cat/body/badan.png`
+- `assets/cat/parts/` : `ekor`, `kepala`, `kumis`, `kuping`, `tangan`
+- `assets/cat/eyes/` : `mata`, `mata_tidur`, `pupil`
+- `assets/effects/` : `love`, `gelembung`
+- File sumber `.aseprite` ada di `art/source/`. Kucing berwarna hitam dengan garis tepi putih (belum memakai warna penanda untuk palette swap, ini baru dikerjakan di Phase 7).
 
-let win;
+Perilaku yang sudah jalan:
+- Napas (kepala naik-turun 1 piksel), ekor goyang bertahap 5 derajat, kuping berkedut acak, kedip, pupil melirik kiri/kanan.
+- Klik kucing: hati naik dari atas kepala (`LOVE_START_UP`).
+- Mengetik di aplikasi mana pun: tangan bergerak per ketikan, pupil melihat ke bawah.
+- Tidak ada aktivitas selama `SLEEP_AFTER_MS` (5 menit): tidur melingkar (kepala turun ke badan lewat `SLEEP_HEAD_DROP`, mata tidur, gelembung). Aktivitas keyboard, klik, atau scroll membangunkan. Gerak mouse saja tidak.
+- Posisi hati dan gelembung bergantung pada posisi gambar di kanvas pemilik (keduanya diekspor di tengah kanvas, sehingga hati dipindah lewat kode).
 
-app.whenReady().then(() => {
-  const { width, height } = screen.getPrimaryDisplay().workAreaSize;
-
-  win = new BrowserWindow({
-    width: 200,
-    height: 200,
-    x: width - 250,
-    y: height - 220,
-    transparent: true,
-    frame: false,
-    alwaysOnTop: true,
-    skipTaskbar: true,
-    resizable: false,
-    hasShadow: false,
-    webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
-    },
-  });
-
-  // Awalnya klik menembus jendela
-  win.setIgnoreMouseEvents(true, { forward: true });
-
-  win.loadFile(path.join(__dirname, 'src/renderer/pet/index.html'));
-
-  // Kucing meminta: tembus klik atau tidak
-  ipcMain.on('set-ignore-mouse', (event, ignore) => {
-    if (ignore) {
-      win.setIgnoreMouseEvents(true, { forward: true });
-    } else {
-      win.setIgnoreMouseEvents(false);
-    }
-  });
-
-  // Tombol keluar darurat
-  globalShortcut.register('Control+Shift+Q', () => app.quit());
-});
-
-app.on('window-all-closed', () => app.quit());
-```
-
-### `src/renderer/pet/index.html`
-
-```html
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8" />
-  <style>
-    html, body {
-      margin: 0;
-      background: transparent;
-      overflow: hidden;
-    }
-    #cat {
-      position: absolute;
-      left: 50px;
-      top: 50px;
-      width: 100px;
-      height: 100px;
-      background: orange;
-      border: 4px solid #333;
-      image-rendering: pixelated;
-    }
-  </style>
-</head>
-<body>
-  <div id="cat"></div>
-
-  <script>
-    const { ipcRenderer } = require('electron');
-    const cat = document.getElementById('cat');
-
-    cat.addEventListener('mouseenter', () => ipcRenderer.send('set-ignore-mouse', false));
-    cat.addEventListener('mouseleave', () => ipcRenderer.send('set-ignore-mouse', true));
-  </script>
-</body>
-</html>
-```
-
-Cara menjalankan: `npm start` di `D:\Projects\cat-companion`. Cara keluar: Ctrl+Shift+Q atau Ctrl+C di terminal.
+Keputusan yang menyimpang dari rencana awal:
+- Struktur `src/renderer/pet/core|brain|animation` (file TypeScript kosong) belum dipakai. Sementara semua di `pet.js` (JavaScript). Pecah ke modul saat file membesar (mulai Phase 5/6) atau saat migrasi ke TypeScript.
+- Tidur memakai kepala yang diturunkan lewat kode, bukan gambar pose melingkar. Pemilik boleh menggantinya dengan gambar sendiri nanti.
 
 ---
 
 ## 8. Langkah berikutnya untuk AI penerus
 
-1. Tanyakan satu hal saja: apakah aset kucing dari Phase 1 sudah ada (dan bagian apa saja), atau pakai placeholder dulu.
-2. Kerjakan **Phase 3** dengan format kerja di bagian 2:
-   - Buat rig di `src/renderer/pet/core/rig.js` (atau `.ts` kalau memutuskan migrasi ke TypeScript; jika migrasi, jelaskan langkah install TypeScript dan build secara bertahap dan sederhana).
-   - Isi `assets/cat/rig.json` dengan posisi dan pivot.
-   - Buat animasi napas, ekor, telinga, kedip, plus efek hati dan zzz.
-3. Pada akhir phase, beri perintah commit.
-4. Perbarui tabel status di bagian 5 dan snapshot di bagian 7 setiap kali phase selesai, supaya dokumen ini tetap akurat.
+1. Kerjakan **Phase 5** (interaksi mouse): mata ikut kursor, drag dengan efek mochi (squash and stretch), elus kepala (hover lama lalu hati dan dengkur), berburu kursor saat mouse digerakkan cepat, reaksi scroll (gulungan tisu), mode panas saat mengetik sangat cepat. Event `mouse` dan `scroll` sudah dikirim dari `main.js`, tetapi posisi kursor global belum, jadi tambahkan data koordinat (hanya posisi, aman).
+2. Perhatikan dulu pecah `pet.js` jadi modul-modul kecil sebelum menambah banyak perilaku, dengan penjelasan sederhana untuk pemilik.
+3. Kalau pemilik sudah membuat pose mengetik di keyboard, integrasikan sebagai layer atau pose baru dan tambahkan ke `rig.json`.
+4. Setelah tiap phase, perbarui tabel status bagian 5 dan bagian 7 ini, lalu beri perintah commit.
 
-Kemungkinan masalah yang perlu diwaspadai:
-- `uiohook-napi` di Windows kadang butuh rebuild setelah install (phase 4). Jika error, tampilkan solusi `electron-rebuild` dengan langkah mudah.
-- Mode mengintip (phase 8) butuh deteksi aplikasi fullscreen/video; ini bagian teknis, tunda sampai akhir.
-- Antivirus bisa curiga pada hook input global; patuhi aturan privasi di bagian 3.
+Kemungkinan masalah:
+- `uiohook-napi` memakai modul native. Jika ada masalah setelah update Electron, jalankan `electron-rebuild` (jelaskan langkahnya dengan sederhana).
+- Antivirus bisa curiga pada hook input global. Patuhi aturan privasi di bagian 3.
+- Mode mengintip (Phase 8) butuh deteksi aplikasi fullscreen; tunda sampai akhir.
