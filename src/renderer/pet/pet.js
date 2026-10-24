@@ -34,6 +34,7 @@ let mochi = 0, mochiV = 0, tilt = 0, tiltV = 0;
 const FOLLOW_HEAD = 3; // seberapa jauh kepala condong (satuan piksel gambar)
 const FOLLOW_BODY = 1; // seberapa jauh badan ikut
 let fx = 0, fvx = 0, fy = 0, fvy = 0, bx = 0, bvx = 0;
+let hunting = false, huntDir = 0;
 
 // Teks di atas kucing (timer dan pengingat)
 const hud = document.getElementById('hud');
@@ -159,6 +160,17 @@ async function init() {
   ipcRenderer.on('status', (event, text) => {
     statusText = text;
     updateHud();
+  });
+
+  // Berburu kursor dari main.js: on = mulai mengejar, caught = berhasil menerkam
+  ipcRenderer.on('hunt', (event, on, caught) => {
+    hunting = on;
+    lastActivity = performance.now();
+    if (on && sleeping) setSleep(false);
+    if (!on && caught) {
+      mochiV += 4;
+      spawnLove();
+    }
   });
 
   // Pengingat dari main.js: kucing bangun dan beraksi
@@ -329,10 +341,15 @@ function frame(t) {
   const sec = Math.min(dt, 50) / 1000;
   dragVx *= 0.85;
   const held = dragging && dragMoved;
-  const mochiTarget = held ? 0.18 : t < stretchUntil ? 0.14 : 0;
+  const huntBounce = hunting ? 0.07 + 0.06 * Math.sin(t / 60) : 0;
+  const mochiTarget = held ? 0.18 : t < stretchUntil ? 0.14 : huntBounce;
   mochiV += (mochiTarget - mochi) * 180 * sec - mochiV * 9 * sec;
   mochi += mochiV * sec;
-  const tiltTarget = held ? Math.max(-15, Math.min(15, dragVx * 0.5)) : 0;
+  if (hunting) {
+    huntDir = Math.sign(cursorX - (stage.offsetLeft + stage.offsetWidth / 2));
+    lastActivity = t;
+  }
+  const tiltTarget = held ? Math.max(-15, Math.min(15, dragVx * 0.5)) : hunting ? huntDir * 8 : 0;
   tiltV += (tiltTarget - tilt) * 140 * sec - tiltV * 8 * sec;
   tilt += tiltV * sec;
   stage.style.transform = `rotate(${tilt}deg) scale(${1 - mochi * 0.6}, ${1 + mochi})`;

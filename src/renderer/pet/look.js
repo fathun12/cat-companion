@@ -13,9 +13,10 @@ const SRC = {
 };
 const RECOLOR = Object.keys(SRC);
 
-// Perkiraan posisi tengah kucing di kanvas (0 kiri sampai 1 kanan).
-// Kalau pola tuxedo terlihat geser, ubah angka ini.
-const CX = 0.46;
+// Titik tengah pola, relatif terhadap kotak pembatas tiap layer (0 kiri, 1 kanan).
+// Kepala dan badan dihitung sendiri-sendiri. Untuk geser manual: kecilkan = ke kiri.
+const CX_HEAD = 0.5;
+const CX_BODY = 0.5;
 
 const PRESETS = {
   hitam:  { body: '#000000', outline: '#ffffff', p1: '#ffffff', p2: '#888888', pattern: 'polos' },
@@ -43,9 +44,9 @@ const PATTERNS = {
     const u = x / w;
     const v = y / h;
     if (id === 'tangan') return 1;
-    if (id === 'ekor') return u > 0.82 ? 1 : 0;
-    if (id === 'badan') return ((u - CX) / 0.13) ** 2 + ((v - 0.62) / 0.2) ** 2 < 1 ? 1 : 0;
-    if (id === 'kepala') return Math.abs(u - CX) < 0.07 && v > 0.27 ? 1 : 0;
+    if (id === 'ekor') return u > 0.75 ? 1 : 0;
+    if (id === 'badan') return ((u - CX_BODY) / 0.4) ** 2 + ((v - 0.62) / 0.5) ** 2 < 1 ? 1 : 0;
+    if (id === 'kepala') return Math.abs(u - CX_HEAD) < 0.1 && v > 0.3 ? 1 : 0;
     return 0;
   },
   calico: (id, x, y) => {
@@ -77,8 +78,24 @@ async function getSource(id) {
   c.height = img.naturalHeight;
   const ctx = c.getContext('2d');
   ctx.drawImage(img, 0, 0);
-  sources[id] = ctx.getImageData(0, 0, c.width, c.height);
-  return sources[id];
+  const data = ctx.getImageData(0, 0, c.width, c.height);
+
+  // Kotak pembatas piksel yang terisi (untuk titik tengah tiap layer)
+  let minX = c.width, maxX = 0, minY = c.height, maxY = 0;
+  for (let y = 0; y < c.height; y++) {
+    for (let x = 0; x < c.width; x++) {
+      if (data.data[(y * c.width + x) * 4 + 3] > 0) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  data.bb = { minX, minY, w: Math.max(1, maxX - minX + 1), h: Math.max(1, maxY - minY + 1) };
+
+  sources[id] = data;
+  return data;
 }
 
 // Mengembalikan { badan: dataURL, kepala: dataURL, ... } yang sudah diwarnai
@@ -93,6 +110,7 @@ async function recolorAll(look) {
     const src = await getSource(id);
     const w = src.width;
     const h = src.height;
+    const bb = src.bb;
     const img = new ImageData(new Uint8ClampedArray(src.data), w, h);
     const d = img.data;
 
@@ -102,7 +120,7 @@ async function recolorAll(look) {
         if (d[i + 3] === 0) continue;
         const L = d[i] * 0.3 + d[i + 1] * 0.59 + d[i + 2] * 0.11;
         let c;
-        if (L < 40) c = cols[fn(id, x, y, w, h)];
+        if (L < 40) c = cols[fn(id, x - bb.minX, y - bb.minY, bb.w, bb.h)];
         else if (L > 215) c = outline;
         else c = body.map((v, k) => v + (outline[k] - v) * (L / 255));
         d[i] = c[0];

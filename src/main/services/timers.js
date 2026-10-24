@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { app, Menu, ipcMain } = require('electron');
 
-const DEFAULTS = { focusMin: 25, breakMin: 5, stretchMin: 45, waterMin: 60 }; // 0 = nonaktif
+const DEFAULTS = { focusMin: 25, breakMin: 5, stretchMin: 45, waterMin: 60, hunt: true }; // 0 = nonaktif
 let settings = { ...DEFAULTS };
 let file = '';
 let win = null;
@@ -145,6 +145,15 @@ function buildMenu() {
     radio('Pengingat peregangan', 'stretchMin', [0, 1, 30, 45, 60], every),
     radio('Pengingat minum', 'waterMin', [0, 1, 30, 45, 60], every),
     { type: 'separator' },
+    {
+      label: 'Berburu kursor',
+      type: 'checkbox',
+      checked: settings.hunt,
+      click: (item) => {
+        settings.hunt = item.checked;
+        save();
+      },
+    },
     { label: 'Kustomisasi kucing...', click: () => ipcMain.emit('open-panel') },
     { type: 'separator' },
     { label: 'Keluar', click: () => app.quit() },
@@ -159,4 +168,4 @@ function init(browserWindow) {
   ipcMain.on('show-menu', () => buildMenu().popup({ window: win }));
 }
 
-module.exports = { init };
+module.exports = { init, huntEnabled: () => settings.hunt };
