@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain, screen, globalShortcut } = require('electron');
 const path = require('path');
+const { uIOhook } = require('uiohook-napi');
 
 let win;
 
@@ -39,6 +40,22 @@ app.whenReady().then(() => {
 
   // Tombol keluar darurat
   globalShortcut.register('Control+Shift+Q', () => app.quit());
+
+  // Pembaca aktivitas global. PRIVASI: hanya jenis aktivitasnya yang dikirim,
+  // isi ketikan (tombol apa) tidak pernah dibaca atau disimpan.
+  const last = {};
+  const notify = (type, minGap) => {
+    const now = Date.now();
+    if (now - (last[type] || 0) < minGap) return;
+    last[type] = now;
+    if (win && !win.isDestroyed()) win.webContents.send('activity', type);
+  };
+  uIOhook.on('keydown', () => notify('key', 30));
+  uIOhook.on('mousemove', () => notify('mouse', 250));
+  uIOhook.on('wheel', () => notify('scroll', 100));
+  uIOhook.on('click', () => notify('click', 100));
+  uIOhook.start();
 });
 
+app.on('will-quit', () => uIOhook.stop());
 app.on('window-all-closed', () => app.quit());

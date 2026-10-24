@@ -13,6 +13,11 @@ const groups = {};
 let SCALE = 2;
 let sleeping = false;
 let bubble = null;
+let lastActivity = performance.now();
+let lastKey = -10000;
+let keyPulseEnd = 0;
+const SLEEP_AFTER_MS = 10 * 1000; // TES: 10 detik
+const LOVE_START_UP = 0.42; // makin besar, hati muncul makin tinggi
 
 function loadImg(src) {
   return new Promise((resolve, reject) => {
@@ -66,11 +71,20 @@ async function init() {
   stage.addEventListener('mouseenter', () => ipcRenderer.send('set-ignore-mouse', false));
   stage.addEventListener('mouseleave', () => ipcRenderer.send('set-ignore-mouse', true));
 
-  // Klik: keluarkan hati (atau bangunkan kalau tidur). Klik kanan: tidur/bangun.
-  stage.addEventListener('click', () => (sleeping ? setSleep(false) : spawnLove()));
-  stage.addEventListener('contextmenu', (e) => {
-    e.preventDefault();
-    setSleep(!sleeping);
+  // Klik kucing: keluarkan hati
+  stage.addEventListener('click', () => {
+    if (!sleeping) spawnLove();
+  });
+
+  // Aktivitas dari luar (dibaca di main.js, tanpa isi ketikan)
+  ipcRenderer.on('activity', (event, type) => {
+    const now = performance.now();
+    lastActivity = now;
+    if (type !== 'mouse' && sleeping) setSleep(false); // gerak mouse saja tidak membangunkan
+    if (type === 'key') {
+      lastKey = now;
+      keyPulseEnd = now + 90;
+    }
   });
 
   requestAnimationFrame(frame);
@@ -87,11 +101,12 @@ function spawnLove() {
   heart.className = 'layer effect';
   stage.appendChild(heart);
   const dx = Math.round(rand(-3, 3)) * SCALE;
+  const startY = -Math.round(stage.offsetHeight * LOVE_START_UP);
   heart
     .animate(
       [
-        { transform: 'translate(0px, 0px)', opacity: 1 },
-        { transform: `translate(${dx}px, ${-14 * SCALE}px)`, opacity: 0 },
+        { transform: `translate(0px, ${startY}px)`, opacity: 1 },
+        { transform: `translate(${dx}px, ${startY - 3 * SCALE}px)`, opacity: 0 },
       ],
       { duration: 1500, easing: 'steps(8)' }
     )
@@ -134,12 +149,19 @@ function frame(t) {
   parts.pupil.style.display = closed ? 'none' : '';
   parts.mata_tidur.style.display = closed ? '' : 'none';
 
-  // Pupil melirik kiri/kanan
+  // Pupil melirik kiri/kanan; saat mengetik melihat ke bawah
   if (t >= nextLook) {
     lookX = Math.floor(rand(-1, 2));
     nextLook = t + rand(2000, 5000);
   }
-  parts.pupil.style.transform = `translate(${lookX * SCALE}px, 0px)`;
+  const typing = !sleeping && t - lastKey < 1500;
+  parts.pupil.style.transform = `translate(${lookX * SCALE}px, ${typing ? SCALE : 0}px)`;
+
+  // Tangan menekan keyboard setiap ada ketikan
+  parts.tangan.style.transform = `translate(0px, ${t < keyPulseEnd ? SCALE : 0}px)`;
+
+  // Tidur kalau lama tidak ada aktivitas
+  if (!sleeping && t - lastActivity > SLEEP_AFTER_MS) setSleep(true);
 
   requestAnimationFrame(frame);
 }
