@@ -63,3 +63,70 @@ Object.keys(Look.PRESETS).forEach((name) => {
   fill();
   render();
 })();
+// ===== Pesan pengingat =====
+let msgs = { name: '', messages: [] };
+
+function saveMsgs() {
+  msgs.name = $('uName').value.trim();
+  ipcRenderer.send('msgs-set', msgs);
+}
+
+function renderMsgs() {
+  const box = $('mList');
+  box.innerHTML = '';
+  msgs.messages.sort((a, b) => a.time.localeCompare(b.time));
+  msgs.messages.forEach((m) => {
+    const row = document.createElement('div');
+    row.className = 'msg';
+
+    const on = document.createElement('input');
+    on.type = 'checkbox';
+    on.checked = m.enabled;
+    on.onchange = () => {
+      m.enabled = on.checked;
+      saveMsgs();
+    };
+
+    const t = document.createElement('span');
+    t.className = 't';
+    t.textContent = m.time;
+
+    const x = document.createElement('span');
+    x.className = 'x';
+    x.textContent = m.text;
+
+    const del = document.createElement('button');
+    del.textContent = 'Hapus';
+    del.onclick = () => {
+      msgs.messages = msgs.messages.filter((q) => q !== m);
+      renderMsgs();
+      saveMsgs();
+    };
+
+    row.append(on, t, x, del);
+    box.appendChild(row);
+  });
+}
+
+$('mAdd').onclick = () => {
+  const time = $('mTime').value;
+  const text = $('mText').value.trim();
+  if (!time || !text) return;
+  msgs.messages.push({
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    time,
+    text,
+    enabled: true,
+  });
+  $('mText').value = '';
+  renderMsgs();
+  saveMsgs();
+};
+$('uName').addEventListener('change', saveMsgs);
+
+(async () => {
+  const saved = await ipcRenderer.invoke('msgs-get');
+  if (saved) msgs = { name: saved.name || '', messages: saved.messages || [] };
+  $('uName').value = msgs.name;
+  renderMsgs();
+})();

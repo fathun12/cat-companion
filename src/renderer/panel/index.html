@@ -18,6 +18,11 @@
     label { display: flex; align-items: center; justify-content: space-between; margin: 6px 0; font-size: 13px; }
     input[type=color] { width: 56px; height: 28px; border: none; background: none; cursor: pointer; }
     select { padding: 4px 8px; font-size: 13px; }
+    input[type=text], input[type=time] { padding: 5px 8px; font-size: 13px; border: 1px solid #bbb; border-radius: 6px; }
+    .msg { display: flex; align-items: center; gap: 8px; padding: 6px 8px; margin: 4px 0; background: #fff; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; }
+    .msg .t { font-weight: 600; }
+    .msg .x { flex: 1; word-break: break-word; }
+    .msg button { padding: 2px 8px; }
   </style>
 </head>
 <body>
@@ -44,6 +49,15 @@
       <option value="calico">Calico</option>
     </select>
   </label>
+
+  <h2>Pesan pengingat</h2>
+  <label>Nama panggilan <input type="text" id="uName" maxlength="20" placeholder="opsional" /></label>
+  <div class="row" style="margin: 8px 0">
+    <input type="time" id="mTime" value="09:00" />
+    <input type="text" id="mText" maxlength="60" placeholder="Isi pesan" style="flex: 1; min-width: 120px" />
+    <button id="mAdd">Tambah</button>
+  </div>
+  <div id="mList"></div>
 
   <script src="main.js"></script>
 </body>

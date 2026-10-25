@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { app, Menu, ipcMain } = require('electron');
 
-const DEFAULTS = { focusMin: 25, breakMin: 5, stretchMin: 45, waterMin: 60, hunt: true }; // 0 = nonaktif
+const DEFAULTS = { focusMin: 25, breakMin: 5, stretchMin: 45, waterMin: 60, hunt: true, name: '', messages: [] }; // 0 = nonaktif
 let settings = { ...DEFAULTS };
 let file = '';
 let win = null;
@@ -61,6 +61,21 @@ function sendStatus() {
   send('status', text);
 }
 
+// Pesan kustom: bunyi sekali per hari pada jam:menit yang ditentukan
+const fired = {}; // id pesan -> tanggal+jam terakhir dibunyikan
+function checkMessages(now) {
+  const d = new Date(now);
+  const hm = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  const stamp = d.toDateString() + hm;
+  for (const m of settings.messages) {
+    if (!m.enabled || m.time !== hm || fired[m.id] === stamp) continue;
+    fired[m.id] = stamp;
+    say((settings.name ? settings.name + ', ' : '') + m.text, 'hop');
+    return true;
+  }
+  return false;
+}
+
 function tick() {
   const now = Date.now();
   let said = false;
@@ -75,6 +90,8 @@ function tick() {
     }
     said = true;
   }
+
+  if (!said && checkMessages(now)) said = true;
 
   if (!said && settings.stretchMin > 0 && now >= nextStretch && pomo.phase !== 'break') {
     say('Waktunya peregangan! Berdiri sebentar.', 'stretch');
@@ -168,6 +185,22 @@ function init(browserWindow) {
   setInterval(tick, 1000);
   ipcMain.on('show-menu', () => buildMenu().popup({ window: win }));
   ipcMain.handle('play-get', () => settings.hunt);
+
+  // Pesan kustom dari panel
+  ipcMain.handle('msgs-get', () => ({ name: settings.name, messages: settings.messages }));
+  ipcMain.on('msgs-set', (event, data) => {
+    settings.name = String((data && data.name) || '').slice(0, 20);
+    settings.messages = ((data && data.messages) || [])
+      .filter((m) => m && /^\d{2}:\d{2}$/.test(m.time) && String(m.text || '').trim())
+      .slice(0, 20)
+      .map((m) => ({
+        id: String(m.id),
+        time: m.time,
+        text: String(m.text).slice(0, 60),
+        enabled: !!m.enabled,
+      }));
+    save();
+  });
 }
 
 module.exports = { init, huntEnabled: () => settings.hunt };
