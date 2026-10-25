@@ -213,7 +213,13 @@ async function recolorTyping(look) {
   const outline = hex(look.outline);
   const cols = [body, hex(look.p1), hex(look.p2)];
   const fn = PATTERNS[look.pattern] || PATTERNS.polos;
-  const warm = (c) => c.map((v, k) => Math.round(v + ([235, 45, 45][k] - v) * 0.55));
+  // Versi merah: garis tepi jadi merah, badan gelap tetap gelap, badan terang sedikit memerah
+  const warm = (c) => {
+    if (c[0] === outline[0] && c[1] === outline[1] && c[2] === outline[2]) return [235, 45, 45];
+    const L = c[0] * 0.3 + c[1] * 0.59 + c[2] * 0.11;
+    if (L < 60) return c;
+    return c.map((v, k) => Math.round(v + ([235, 45, 45][k] - v) * 0.4));
+  };
   const url = (img) => {
     const cv = document.createElement('canvas');
     cv.width = img.width;
@@ -253,6 +259,21 @@ async function recolorTyping(look) {
       }
     }
 
+    // Kumis = piksel hitam di ujung kiri siluet (sebelah kirinya transparan), maksimal 5 piksel ke kanan
+    const whiskerMask = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const p = y * w + x;
+        if (d[p * 4 + 3] === 0 || lum(d, p * 4) >= 40) continue;
+        if (x > 0 && d[(p - 1) * 4 + 3] !== 0) continue; // bukan ujung kiri
+        for (let k = 0; k < 5 && x + k < w; k++) {
+          const q = p + k;
+          if (d[q * 4 + 3] === 0 || lum(d, q * 4) >= 40) break;
+          whiskerMask[q] = 1;
+        }
+      }
+    }
+
     const o = {};
     for (const k of ['kb', 'cat', 'catH', 'tail', 'tailH', 'tired', 'tiredH']) o[k] = new ImageData(w, h);
     const put = (buf, i, c) => {
@@ -276,12 +297,12 @@ async function recolorTyping(look) {
         const id = idOf(x, y);
         const b = bb[id];
         const face = cols[fn(id, x - b.x0, y - b.y0, b.x1 - b.x0 + 1, b.y1 - b.y0 + 1)];
-        const whisker = L < 40 && x <= 5; // kumis di luar wajah tetap hitam
+        const whisker = whiskerMask[p] === 1; // kumis tetap hitam
         let c = orig;
         let ch = orig;
         let ct = orig; // versi lelah
         let cth = orig;
-        if (keep[p]) {
+        if (keep[p] && !whisker) {
           ct = face; // mata dihapus (jadi warna wajah), nanti ditimpa mata tertutup
           cth = warm(face);
         } else if (!whisker) {
