@@ -197,7 +197,7 @@ Catatan: Phase 3 bisa dikerjakan dengan **placeholder** (kotak berwarna per bagi
 
 Lokasi projek: `D:\Projects\cat-companion`
 
-Semua folder dan file kosong di bawah ini SUDAH dibuat lewat skrip PowerShell (kecuali yang ditandai baru). Banyak file masih kosong dan diisi bertahap sesuai phase.
+CATATAN: tree di bawah adalah RENCANA AWAL dan sebagian sudah usang (misalnya file `.ts` kosong di `src/renderer/pet` tidak dipakai). Struktur sebenarnya ada di bagian 7. Gunakan tree ini hanya sebagai gambaran umum.
 
 ```
 cat-companion/
@@ -299,8 +299,14 @@ Sumber kebenaran adalah file di repo (snapshot kode tidak disalin ke sini agar t
 File yang aktif dipakai:
 - `main.js` (root): jendela transparan 200x200 di pojok kanan bawah, click-through, global shortcut keluar, pembaca input global (`uIOhook`) yang mengirim event IPC `activity` dengan nilai `key`, `mouse`, `scroll`, atau `click`. Tidak ada isi ketikan yang dibaca.
 - `src/renderer/pet/index.html`: panggung (`#stage`), CSS layer, animasi CSS gelembung.
-- `src/renderer/pet/pet.js`: seluruh logika kucing saat ini (rig, animasi, reaksi, tidur). Sengaja satu file dulu.
-- `assets/cat/rig.json`: daftar layer, grup (`body`/`head`), titik pivot (ekor, kuping, gelembung), dan lokasi efek.
+- `src/renderer/pet/` dipecah jadi modul CommonJS (tanpa build). Semua variabel bersama ada di objek `S` (`state.js`), modul lain memakai `const S = require('./state')`:
+  - `state.js`: konstanta pengaturan (`SLEEP_AFTER_MS`, `PLAY_SPEED`, `PLAY_RADIUS`, `LOVE_START_UP`, `SLEEP_HEAD_DROP`, `FOLLOW_HEAD`, `FOLLOW_BODY`, `WIN`) dan semua variabel status.
+  - `actions.js`: `setSleep`, `spawnLove`, `updateHud`, `rand`.
+  - `rig.js`: `buildRig` (muat gambar, susun layer, pivot, gelembung), `initLook` (terapkan warna/pola tersimpan dan dengarkan perubahan dari panel).
+  - `input.js`: `initInput` (semua listener mouse/drag/klik kanan dan semua pesan IPC dari `main.js`, termasuk deteksi "bermain").
+  - `animate.js`: `startLoop` (loop animasi: napas, tidur, bermain, elus/dengkur, kepala/badan kenyal, ekor, kuping, kedip, pupil, tangan, mochi).
+  - `pet.js`: titik awal saja (`buildRig`, `initInput`, `initLook`, `startLoop`).
+  - Menambah perilaku baru: tambahkan variabel di `state.js`, event di `input.js`, dan gerakannya di `animate.js`., titik pivot (ekor, kuping, gelembung), dan lokasi efek.
 
 Aset yang sudah ada (PNG, kanvas penuh sama ukuran, latar transparan, semua bertumpuk di posisi 0,0):
 - `assets/cat/body/badan.png`
@@ -317,7 +323,7 @@ Perilaku yang sudah jalan:
 - Posisi hati dan gelembung bergantung pada posisi gambar di kanvas pemilik (keduanya diekspor di tengah kanvas, sehingga hati dipindah lewat kode). - Pola digambar lewat kode. Posisinya dihitung otomatis dari kotak pembatas piksel tiap layer (kepala dan badan punya titik tengah sendiri karena kucing sedikit serong); geser manual lewat `CX_HEAD` dan `CX_BODY` di `look.js`.
 
 Keputusan yang menyimpang dari rencana awal:
-- Struktur `src/renderer/pet/core|brain|animation` (file TypeScript kosong) belum dipakai. Sementara semua di `pet.js` (JavaScript). Pecah ke modul saat file membesar (mulai Phase 5/6) atau saat migrasi ke TypeScript.
+- Struktur rencana awal (`src/renderer/pet/core|brain|animation` dengan file TypeScript) TIDAK dipakai. Kode kucing dipecah jadi modul JavaScript datar di `src/renderer/pet/` (lihat daftar di atas). State machine formal (`brain/`) belum dibuat; status masih berupa flag di `state.js`.
 - Tidur memakai kepala yang diturunkan lewat kode, bukan gambar pose melingkar. Pemilik boleh menggantinya dengan gambar sendiri nanti.
 
 ---
@@ -325,7 +331,7 @@ Keputusan yang menyimpang dari rencana awal:
 ## 8. Langkah berikutnya untuk AI penerus
 
 1. Kerjakan **Phase 5** (interaksi mouse): mata ikut kursor, drag dengan efek mochi (squash and stretch), elus kepala (hover lama lalu hati dan dengkur), berburu kursor saat mouse digerakkan cepat, reaksi scroll (gulungan tisu), mode panas saat mengetik sangat cepat. Event `mouse` dan `scroll` sudah dikirim dari `main.js`, tetapi posisi kursor global belum, jadi tambahkan data koordinat (hanya posisi, aman).
-2. Perhatikan dulu pecah `pet.js` jadi modul-modul kecil sebelum menambah banyak perilaku, dengan penjelasan sederhana untuk pemilik.
+2. (Opsional) Migrasi ke TypeScript bila pemilik mau. Pemecahan modul sudah selesai.
 3. Kalau pemilik sudah membuat pose mengetik di keyboard, integrasikan sebagai layer atau pose baru dan tambahkan ke `rig.json`.
 4. Setelah tiap phase, perbarui tabel status bagian 5 dan bagian 7 ini, lalu beri perintah commit.
 
