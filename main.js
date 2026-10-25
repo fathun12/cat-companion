@@ -1,10 +1,11 @@
-const { app, BrowserWindow, ipcMain, screen, globalShortcut } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, globalShortcut, Tray, Menu, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { uIOhook } = require('uiohook-napi');
 const timers = require('./src/main/services/timers');
 
 let win;
+let tray; // harus disimpan di variabel supaya ikon tidak hilang
 
 app.whenReady().then(() => {
   const { width, height } = screen.getPrimaryDisplay().workAreaSize;
@@ -110,9 +111,9 @@ app.whenReady().then(() => {
     if (win && !win.isDestroyed()) win.webContents.send('look', look);
   });
 
-  // Jendela kustomisasi (dibuka dari menu klik kanan)
+  // Jendela kustomisasi (dibuka dari menu klik kanan atau tray)
   let panel = null;
-  ipcMain.on('open-panel', () => {
+  const openPanel = () => {
     if (panel && !panel.isDestroyed()) {
       panel.focus();
       return;
@@ -125,7 +126,29 @@ app.whenReady().then(() => {
       webPreferences: { nodeIntegration: true, contextIsolation: false },
     });
     panel.loadFile(path.join(__dirname, 'src/renderer/panel/index.html'));
-  });
+  };
+  ipcMain.on('open-panel', openPanel);
+
+  // Ikon tray (pojok taskbar): klik = tampil/sembunyikan kucing, klik kanan = menu
+  const trayIcon = nativeImage
+    .createFromPath(path.join(__dirname, 'assets/cat/typing/kepala.png'))
+    .crop({ x: 4, y: 4, width: 30, height: 30 })
+    .resize({ width: 32, height: 32 });
+  tray = new Tray(trayIcon);
+  tray.setToolTip('Cat Companion');
+  const toggleCat = () => {
+    if (win.isVisible()) win.hide();
+    else win.showInactive();
+  };
+  tray.on('click', toggleCat);
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: 'Tampilkan / sembunyikan kucing', click: toggleCat },
+      { label: 'Kustomisasi...', click: openPanel },
+      { type: 'separator' },
+      { label: 'Keluar', click: () => app.quit() },
+    ])
+  );
 });
 
 app.on('will-quit', () => uIOhook.stop());
