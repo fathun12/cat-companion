@@ -10,6 +10,8 @@ let plant = 1; // 1 = kaki menapak, 0 = diangkat (saat di-drag)
 let nextBlink = 2000, blinkEnd = 0;
 let nextEar = 4000, earEnd = 0, earAngle = -4;
 let nextLook = 3000, lookX = 0;
+let heat = 0; // 0 = tenang, 1 = memerah
+let hot = false, hotUntil = 0, tiredUntil = 0, wasTired = false;
 
 const spring = (pos, vel, target, k, c, sec) => {
   vel += ((target - pos) * k - vel * c) * sec;
@@ -86,15 +88,42 @@ function frame(t) {
   }
   parts.kuping.style.transform = `rotate(${t < earEnd ? earAngle : 0}deg)`;
 
+  // ----- Mengetik cepat: frustrasi -> memerah -> lelah -----
+  const keys = S.keyTimes;
+  while (keys.length && t - keys[0] > 1000) keys.shift();
+  const tired = !S.sleeping && t < tiredUntil;
+  if (S.sleeping) {
+    heat = 0;
+    hot = false;
+    tiredUntil = 0;
+  } else if (tired) {
+    heat = 0;
+  } else if (hot) {
+    if (t > hotUntil) {
+      hot = false;
+      heat = 0;
+      tiredUntil = t + S.TIRED_MS;
+      keys.length = 0;
+    }
+  } else {
+    heat += keys.length >= S.HEAT_KPS ? dt / S.HEAT_RISE_MS : -dt / S.HEAT_FALL_MS;
+    heat = Math.max(0, Math.min(1, heat));
+    if (heat >= 1) {
+      hot = true;
+      hotUntil = t + S.HOT_MS;
+    }
+  }
+
   // ----- Kedip -----
   if (t >= nextBlink) {
     blinkEnd = t + 160;
     nextBlink = t + rand(2500, 6000);
   }
-  const closed = S.sleeping || S.purring || t < blinkEnd;
+  const closed = S.sleeping || S.purring || t < blinkEnd || tired;
   parts.mata.style.display = closed ? 'none' : '';
   parts.pupil.style.display = closed ? 'none' : '';
-  parts.mata_tidur.style.display = closed ? '' : 'none';
+  parts.mata_tidur.style.display = closed && !tired ? '' : 'none';
+  S.eyeTired.style.display = tired ? '' : 'none';
 
   // ----- Pupil: melirik acak, melihat ke bawah saat mengetik, mengikuti kursor -----
   if (t >= nextLook) {
@@ -115,8 +144,22 @@ function frame(t) {
   }
   parts.pupil.style.transform = `translate(${ex * SCALE}px, ${ey * SCALE}px)`;
 
-  // ----- Tangan menekan keyboard setiap ada ketikan atau scroll -----
+  // ----- Tangan: sekarang hanya bergerak saat scroll -----
   parts.tangan.style.transform = `translate(0px, ${t < S.keyPulseEnd ? SCALE : 0}px)`;
+
+  // ----- Pose mengetik (click1/click2), gelembung frustrasi, merah -----
+  const poseTyping = !S.sleeping && !tired && !S.dragging && t - S.lastKey < S.TYPE_HOLD_MS;
+  for (const id in groups) groups[id].style.display = poseTyping ? 'none' : '';
+  S.typeImgs.forEach((img, i) => (img.style.display = poseTyping && i === S.typeFrame ? '' : 'none'));
+  const frustrated = poseTyping && !hot && heat > S.FRUSTRATE_AT;
+  const angryFrame = Math.floor(t / 250) % 2;
+  S.angryImgs.forEach((img, i) => (img.style.display = frustrated && i === angryFrame ? '' : 'none'));
+  stage.style.filter = hot ? S.HOT_FILTER : 'none';
+  // Gelembung tidur dipakai juga saat lelah
+  if (tired !== wasTired) {
+    wasTired = tired;
+    if (!S.sleeping) S.bubble.style.display = tired ? '' : 'none';
+  }
 
   // ----- Tidur kalau lama tidak ada aktivitas -----
   if (!S.sleeping && t - S.lastActivity > S.SLEEP_AFTER_MS) setSleep(true);
@@ -136,8 +179,9 @@ function frame(t) {
   plant += ((held ? 0 : 1) - plant) * Math.min(1, dt / 150);
   const sy = 1 + S.mochi;
   const ground = (S.FEET_Y - 0.25) * stage.offsetHeight * (1 - sy) * plant;
+  const hotShake = hot ? (Math.floor(t / 60) % 2) * SCALE : 0;
   stage.style.transform =
-    `translateY(${ground}px) rotate(${tilt}deg) scale(${1 - S.mochi * 0.6}, ${sy})`;
+    `translateX(${hotShake}px) translateY(${ground}px) rotate(${tilt}deg) scale(${1 - S.mochi * 0.6}, ${sy})`;
 
   requestAnimationFrame(frame);
 }

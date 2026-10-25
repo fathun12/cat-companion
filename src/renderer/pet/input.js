@@ -68,7 +68,8 @@ function initInput() {
     if (type !== 'mouse' && S.sleeping) setSleep(false); // gerak mouse saja tidak membangunkan
     if (type === 'key') {
       S.lastKey = now;
-      S.keyPulseEnd = now + 90;
+      S.keyTimes.push(now);
+      S.typeFrame = 1 - S.typeFrame; // ganti pose click1/click2 tiap ketikan
     }
     if (type === 'scroll') S.keyPulseEnd = now + 110;
   });

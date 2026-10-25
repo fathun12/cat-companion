@@ -60,6 +60,19 @@ async function buildRig() {
     pct(S.rig.pivots.gelembung[0]) + ' ' + pct(S.rig.pivots.gelembung[1]);
   S.bubble.style.display = 'none';
   S.stage.appendChild(S.bubble);
+
+  // Pose mengetik, gelembung frustrasi, mata lelah (disembunyikan dulu)
+  const load = async (files) => {
+    const list = await Promise.all(files.map((f) => loadImg(S.BASE + f)));
+    list.forEach((img) => (img.style.display = 'none'));
+    return list;
+  };
+  S.typeImgs = await load(['cat/typing/click1.png', 'cat/typing/click2.png']);
+  S.angryImgs = await load(['effects/gelembung2.png', 'effects/gelembung4.png']);
+  [S.eyeTired] = await load(['cat/eyes/mata_tertutup2.png']);
+  S.typeImgs.forEach((img) => S.stage.appendChild(img));
+  S.angryImgs.forEach((img) => S.stage.appendChild(img));
+  S.groups.head.appendChild(S.eyeTired);
 }
 
 async function applyLook(look) {
