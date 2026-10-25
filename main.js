@@ -10,7 +10,11 @@ let tray; // harus disimpan di variabel supaya ikon tidak hilang
 let peeking = false; // true = kucing sedang mengintip di tepi layar
 let peekProc = null; // proses PowerShell pembaca status layar penuh
 
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) app.quit(); // sudah ada kucing yang jalan
+
 app.whenReady().then(() => {
+  if (!gotLock) return;
   const WIN = 260;
 
   // Posisi terakhir disimpan di pos.json; dipakai lagi kalau masih berada di salah satu monitor

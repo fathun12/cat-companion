@@ -5,7 +5,7 @@ const S = {
   // ===== Pengaturan (boleh diubah) =====
   WIN: 260, // harus sama dengan WIN di main.js
   BASE: '../../../assets/', // lokasi folder assets dari index.html
-  SLEEP_AFTER_MS: 10 * 1000, // diam sekian milidetik -> tidur
+  SLEEP_AFTER_MS: 5 * 60 * 1000, // diam sekian milidetik -> tidur
   LOVE_START_UP: 0.42, // makin besar, hati muncul makin tinggi
   SLEEP_HEAD_DROP: 0.14, // kepala turun saat tidur (pecahan tinggi kucing)
   FOLLOW_HEAD: 3, // seberapa jauh kepala condong ke kursor

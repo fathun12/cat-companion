@@ -183,7 +183,7 @@ Efek yang dibuat lewat kode (tanpa digambar):
 | 6 | Pomodoro, pengingat peregangan/minum/pesan, catatan sematan, `electron-store` | **Sebagian selesai**: Pomodoro, pengingat peregangan dan minum, menu klik kanan, simpan pengaturan (JSON sendiri, bukan `electron-store`). Belum: pesan pengingat kustom, catatan sematan |
 | 7 | Kustomisasi kucing (palette swap, pola, panel pengaturan + pratinjau) | **Selesai (dasar)**: panel kustomisasi, 5 preset, 4 warna, 4 pola prosedural, tersimpan. Belum: editor catatan dan pesan di panel |
 | 8 | Polish: tray, auto-start Windows, multi-monitor, mode mengintip, cek CPU/RAM | Belum |
-| 9 | Packaging dengan `electron-builder`, uji di komputer lain, README | Belum |
+| 9 | Packaging dengan `electron-builder`, uji di komputer lain, README | **Sebagian selesai**: `electron-builder.yml` (NSIS, output `release/`), ikon `build/icon.ico` dari `typing/kepala.png`, satu-instance, README.md. Belum: uji di komputer lain, tanda tangan digital |
 
 Kriteria selesai per phase:
 - **Phase 3:** kucing diam tapi terasa hidup (napas, ekor, kedip terlihat).
