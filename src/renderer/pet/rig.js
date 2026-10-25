@@ -17,6 +17,62 @@ function loadImg(src) {
   });
 }
 
+const mkImg = () => {
+  const img = new Image();
+  img.className = 'layer';
+  img.draggable = false;
+  return img;
+};
+
+const mkDiv = (parent) => {
+  const d = document.createElement('div');
+  d.className = 'group';
+  parent.appendChild(d);
+  return d;
+};
+
+// Pose mengetik: 3 set (click1, click2, lelah).
+// Tiap set = papan ketik (diam) + kucing (turun/miring) + ekor (berkibas).
+// Kucing dan ekor punya versi merah; seberapa merah diatur lewat opacity di animate.js.
+function buildTyping() {
+  const shift = S.TYPE_SHIFT_Y * S.SCALE + 'px';
+  for (let i = 0; i < 3; i++) {
+    const box = mkDiv(S.stage);
+    box.style.display = 'none';
+    box.style.transform = `translateY(${shift})`;
+    const kb = mkImg();
+    box.appendChild(kb);
+    const lean = mkDiv(box);
+    lean.style.transformOrigin = pct(S.TFEET_X) + ' ' + pct(S.TFEET_Y);
+    const tailBox = mkDiv(lean);
+    tailBox.style.transformOrigin = pct(S.TAIL_PIVOT[0]) + ' ' + pct(S.TAIL_PIVOT[1]);
+    const tail = mkImg();
+    const tailH = mkImg();
+    tailH.style.opacity = '0';
+    tailBox.append(tail, tailH);
+    const cat = mkImg();
+    const catH = mkImg();
+    catH.style.opacity = '0';
+    lean.append(cat, catH);
+    const set = { box, kb, lean, tailBox, tail, tailH, cat, catH, eyes: null };
+    if (i === 2) {
+      set.eyes = mkImg();
+      set.eyes.style.transform = `translate(${S.TIRED_DX * S.SCALE}px, ${S.TIRED_DY * S.SCALE}px)`;
+      lean.appendChild(set.eyes);
+    }
+    S.typing.push(set);
+  }
+  // Gelembung frustrasi (digambar di kanvas yang sama dengan pose click)
+  for (const f of ['effects/gelembung2.png', 'effects/gelembung4.png']) {
+    const img = mkImg();
+    img.src = S.BASE + f;
+    img.style.display = 'none';
+    img.style.transform = `translateY(${shift})`;
+    S.stage.appendChild(img);
+    S.angryImgs.push(img);
+  }
+}
+
 async function buildRig() {
   S.rig = JSON.parse(
     fs.readFileSync(path.join(__dirname, '..', '..', '..', 'assets', 'cat', 'rig.json'), 'utf8')
@@ -61,23 +117,24 @@ async function buildRig() {
   S.bubble.style.display = 'none';
   S.stage.appendChild(S.bubble);
 
-  // Pose mengetik, gelembung frustrasi, mata lelah (disembunyikan dulu)
-  const load = async (files) => {
-    const list = await Promise.all(files.map((f) => loadImg(S.BASE + f)));
-    list.forEach((img) => (img.style.display = 'none'));
-    return list;
-  };
-  S.typeImgs = await load(['cat/typing/click1.png', 'cat/typing/click2.png']);
-  S.angryImgs = await load(['effects/gelembung2.png', 'effects/gelembung4.png']);
-  [S.eyeTired] = await load(['cat/eyes/mata_tertutup2.png']);
-  S.typeImgs.forEach((img) => S.stage.appendChild(img));
-  S.angryImgs.forEach((img) => S.stage.appendChild(img));
-  S.groups.head.appendChild(S.eyeTired);
+  buildTyping();
 }
 
 async function applyLook(look) {
   const urls = await Look.recolorAll(look);
   for (const id in urls) S.parts[id].src = urls[id];
+
+  // Pose mengetik ikut warna dan pola yang sama
+  const ty = await Look.recolorTyping(look);
+  ty.sets.forEach((u, i) => {
+    const s = S.typing[i];
+    s.kb.src = u.kb;
+    s.cat.src = u.cat;
+    s.catH.src = u.catH;
+    s.tail.src = u.tail;
+    s.tailH.src = u.tailH;
+  });
+  S.typing[2].eyes.src = ty.eyes;
 }
 
 // Terapkan tampilan tersimpan, lalu dengarkan perubahan dari panel kustomisasi
