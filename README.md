@@ -103,4 +103,4 @@ Kucing dirakit dari PNG terpisah berukuran 48x48 dengan latar transparan: kepala
 
 ## Lisensi
 
-Belum ditentukan. Tambahkan file `LICENSE` sebelum repositori dipublikasikan.
+Domain publik ([Unlicense](LICENSE)). Kode dan gambar kucing boleh dipakai, diubah, dan disebarkan siapa saja tanpa syarat, termasuk untuk keperluan komersial.
