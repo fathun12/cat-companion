@@ -130,3 +130,6 @@ $('uName').addEventListener('change', saveMsgs);
   $('uName').value = msgs.name;
   renderMsgs();
 })();
+// ===== Catatan sematan =====
+ipcRenderer.invoke('note-get').then((v) => ($('note').value = v || ''));
+$('note').addEventListener('change', () => ipcRenderer.send('note-set', $('note').value));

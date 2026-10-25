@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { app, Menu, ipcMain } = require('electron');
 
-const DEFAULTS = { focusMin: 25, breakMin: 5, stretchMin: 45, waterMin: 60, hunt: true, name: '', messages: [] }; // 0 = nonaktif
+const DEFAULTS = { focusMin: 25, breakMin: 5, stretchMin: 45, waterMin: 60, hunt: true, name: '', messages: [], note: '' }; // 0 = nonaktif
 let settings = { ...DEFAULTS };
 let file = '';
 let win = null;
@@ -185,6 +185,14 @@ function init(browserWindow) {
   setInterval(tick, 1000);
   ipcMain.on('show-menu', () => buildMenu().popup({ window: win }));
   ipcMain.handle('play-get', () => settings.hunt);
+
+  // Catatan sematan di atas kepala kucing
+  ipcMain.handle('note-get', () => settings.note);
+  ipcMain.on('note-set', (event, text) => {
+    settings.note = String(text || '').slice(0, 80);
+    save();
+    send('note', settings.note);
+  });
 
   // Pesan kustom dari panel
   ipcMain.handle('msgs-get', () => ({ name: settings.name, messages: settings.messages }));

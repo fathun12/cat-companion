@@ -141,10 +141,18 @@ app.whenReady().then(() => {
     else win.showInactive();
   };
   tray.on('click', toggleCat);
+  // Auto-start Windows. Saat dev (npm start) harus menyebut path dan folder proyek.
+  const loginOpts = app.isPackaged ? {} : { path: process.execPath, args: [app.getAppPath()] };
   tray.setContextMenu(
     Menu.buildFromTemplate([
       { label: 'Tampilkan / sembunyikan kucing', click: toggleCat },
       { label: 'Kustomisasi...', click: openPanel },
+      {
+        label: 'Jalankan saat Windows menyala',
+        type: 'checkbox',
+        checked: app.getLoginItemSettings(loginOpts).openAtLogin,
+        click: (item) => app.setLoginItemSettings({ openAtLogin: item.checked, ...loginOpts }),
+      },
       { type: 'separator' },
       { label: 'Keluar', click: () => app.quit() },
     ])

@@ -118,6 +118,22 @@ function initInput() {
   // Pengaturan "Bermain dengan kursor" (menu klik kanan)
   ipcRenderer.invoke('play-get').then((v) => (S.playEnabled = v));
   ipcRenderer.on('play-enabled', (event, v) => (S.playEnabled = v));
+
+  // Catatan sematan: kotak kuning di atas kepala kucing (tidak menghalangi klik)
+  const note = document.createElement('div');
+  note.style.cssText =
+    'position:fixed;left:50%;transform:translateX(-50%);width:max-content;max-width:236px;' +
+    'max-height:48px;overflow:hidden;padding:3px 6px;background:#fff2a8;border:2px solid #333;' +
+    'color:#222;font:11px/1.25 "Segoe UI",sans-serif;text-align:center;white-space:pre-wrap;' +
+    'word-break:break-word;pointer-events:none;display:none;';
+  note.style.bottom = S.WIN - (stage.offsetTop + 8) + 'px';
+  document.body.appendChild(note);
+  const showNote = (text) => {
+    note.textContent = text || '';
+    note.style.display = text ? 'block' : 'none';
+  };
+  ipcRenderer.invoke('note-get').then(showNote);
+  ipcRenderer.on('note', (event, text) => showNote(text));
 }
 
 module.exports = { initInput };
