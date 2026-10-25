@@ -8,7 +8,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "Unlicense",
   "description": "Kucing piksel pendamping di desktop Windows",
   "devDependencies": {
     "electron": "^45.0.0",
