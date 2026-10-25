@@ -20,6 +20,7 @@ const S = {
   TYPE_SHIFT_Y: -2, // geser pose mengetik (piksel gambar, negatif = naik) supaya lantainya sejajar kucing biasa
   TAIL_PIVOT: [0.83, 0.58], // pangkal ekor di pose ketik (tersembunyi di belakang badan)
   WHISKER_DY: 3, // kumis pose ketik turun sekian piksel gambar (supaya tidak menimpa mata)
+  WHISKER_DX: 2, // kumis pose ketik geser ke kanan sekian piksel gambar (negatif = ke kiri)
   HEAT_KPS: 7, // ketikan per detik yang dianggap "terlalu cepat"
   HEAT_RISE_MS: 5000, // lama ngetik cepat sampai memerah
   HEAT_FALL_MS: 3000, // lama mendingin kalau ngetik sudah pelan

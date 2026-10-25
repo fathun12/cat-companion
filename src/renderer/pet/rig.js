@@ -69,7 +69,7 @@ function buildTyping() {
   T.pupil = mkImg();
   T.closed = mkImg();
   T.kumis.src = S.BASE + 'cat/typing/kumis.png'; // tidak diwarnai ulang
-  T.kumis.style.transform = `translateY(${S.WHISKER_DY * S.SCALE}px)`;
+  T.kumis.style.transform = `translate(${S.WHISKER_DX * S.SCALE}px, ${S.WHISKER_DY * S.SCALE}px)`;
   T.mata.src = S.BASE + 'cat/typing/mata.png';
   T.pupil.src = S.BASE + 'cat/typing/pupil.png';
   T.closed.style.display = 'none';
