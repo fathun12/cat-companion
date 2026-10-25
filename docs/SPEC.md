@@ -361,4 +361,4 @@ Keputusan yang menyimpang dari rencana awal:
 Kemungkinan masalah:
 - `uiohook-napi` memakai modul native. Jika ada masalah setelah update Electron, jalankan `electron-rebuild` (jelaskan langkahnya dengan sederhana).
 - Antivirus bisa curiga pada hook input global. Patuhi aturan privasi di bagian 3.
-- Mode mengintip (Phase 8) butuh deteksi aplikasi fullscreen; tunda sampai akhir.
+| 8 | Polish: tray, auto-start Windows, multi-monitor, mode mengintip, cek CPU/RAM | **Sebagian selesai**: tray (tampil/sembunyi, kustomisasi, keluar, auto-start), ingat posisi + selamatkan ke monitor utama, mode mengintip (`SHQueryUserNotificationState` lewat PowerShell tersembunyi di `main.js`; hanya angka status, privasi aman). Belum: cek CPU/RAM |

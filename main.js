@@ -2,10 +2,13 @@ const { app, BrowserWindow, ipcMain, screen, globalShortcut, Tray, Menu, nativeI
 const path = require('path');
 const fs = require('fs');
 const { uIOhook } = require('uiohook-napi');
+const { spawn } = require('child_process');
 const timers = require('./src/main/services/timers');
 
 let win;
 let tray; // harus disimpan di variabel supaya ikon tidak hilang
+let peeking = false; // true = kucing sedang mengintip di tepi layar
+let peekProc = null; // proses PowerShell pembaca status layar penuh
 
 app.whenReady().then(() => {
   const WIN = 260;
@@ -106,14 +109,16 @@ app.whenReady().then(() => {
     clearInterval(dragTimer);
     dragTimer = null;
     const [x, y] = win.getPosition();
-    try {
-      fs.writeFileSync(posFile, JSON.stringify({ x, y }));
-    } catch (e) {}
+    if (!peeking) {
+      try {
+        fs.writeFileSync(posFile, JSON.stringify({ x, y }));
+      } catch (e) {}
+    }
   });
 
   // Monitor dicabut atau resolusi berubah: kalau kucing jadi di luar layar, pindah ke monitor utama
   const rescue = () => {
-    if (!win || win.isDestroyed()) return;
+    if (!win || win.isDestroyed() || peeking) return;
     const [x, y] = win.getPosition();
     if (!onScreen({ x, y })) {
       const p = defaultPos();
@@ -122,6 +127,86 @@ app.whenReady().then(() => {
   };
   screen.on('display-removed', rescue);
   screen.on('display-metrics-changed', rescue);
+
+  // ===== Mode mengintip: kucing menyembul dari tepi bawah saat ada aplikasi layar penuh =====
+  const PEEK_VISIBLE = 150; // tinggi bagian jendela yang terlihat (px). Kecilkan = lebih sedikit terlihat
+  let restorePos = null;
+  let slideTimer = null;
+  const slideTo = (x, y) => {
+    clearInterval(slideTimer);
+    const [sx, sy] = win.getPosition();
+    const t0 = Date.now();
+    slideTimer = setInterval(() => {
+      if (!win || win.isDestroyed()) return clearInterval(slideTimer);
+      const k = Math.min(1, (Date.now() - t0) / 350);
+      const e = 1 - Math.pow(1 - k, 3);
+      win.setBounds({
+        x: Math.round(sx + (x - sx) * e),
+        y: Math.round(sy + (y - sy) * e),
+        width: WIN,
+        height: WIN,
+      });
+      if (k >= 1) clearInterval(slideTimer);
+    }, 16);
+  };
+  const setPeek = (on) => {
+    if (!win || win.isDestroyed() || on === peeking) return;
+    if (on) {
+      if (!win.isVisible()) return;
+      const [x, y] = win.getPosition();
+      restorePos = { x, y };
+      const d = screen.getDisplayMatching(win.getBounds()).bounds;
+      peeking = true;
+      win.setAlwaysOnTop(true, 'screen-saver'); // di atas aplikasi layar penuh
+      slideTo(Math.max(d.x, Math.min(x, d.x + d.width - WIN)), d.y + d.height - PEEK_VISIBLE);
+    } else {
+      peeking = false;
+      const p = restorePos || defaultPos();
+      slideTo(p.x, p.y);
+      setTimeout(() => {
+        if (!peeking && win && !win.isDestroyed()) win.setAlwaysOnTop(true);
+      }, 450);
+    }
+  };
+
+  // Satu proses PowerShell tersembunyi menulis satu angka tiap 1,5 detik:
+  // 2 = aplikasi layar penuh, 3 = game Direct3D layar penuh, 4 = mode presentasi.
+  // PRIVASI: hanya angka status, tidak ada judul jendela atau isi layar.
+  let streak = 0;
+  let lastFull = false;
+  const onState = (n) => {
+    const full = n === 2 || n === 3 || n === 4;
+    if (full === lastFull) streak++;
+    else {
+      lastFull = full;
+      streak = 1;
+    }
+    if (streak >= 2) setPeek(full && timers.peekEnabled());
+  };
+  const psScript = [
+    'Add-Type -TypeDefinition \'using System.Runtime.InteropServices; public static class Q { [DllImport("shell32.dll")] public static extern int SHQueryUserNotificationState(out int s); }\'',
+    'while ($true) { $s = 0; [void][Q]::SHQueryUserNotificationState([ref]$s); [Console]::WriteLine($s); Start-Sleep -Milliseconds 1500 }',
+  ].join('\n');
+  try {
+    peekProc = spawn(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-EncodedCommand',
+        Buffer.from(psScript, 'utf16le').toString('base64')],
+      { windowsHide: true }
+    );
+    let buf = '';
+    peekProc.stdout.on('data', (chunk) => {
+      buf += chunk;
+      const lines = buf.split(/\r?\n/);
+      buf = lines.pop();
+      lines.forEach((l) => {
+        const n = parseInt(l, 10);
+        if (!isNaN(n)) onState(n);
+      });
+    });
+    peekProc.stderr.on('data', () => {});
+    peekProc.on('error', () => {});
+  } catch (e) {}
 
   // (Bermain dengan kursor ada di pet.js; jendela tidak lagi berpindah sendiri)
 
@@ -192,5 +277,8 @@ app.whenReady().then(() => {
   );
 });
 
-app.on('will-quit', () => uIOhook.stop());
+app.on('will-quit', () => {
+  uIOhook.stop();
+  if (peekProc) peekProc.kill();
+});
 app.on('window-all-closed', () => app.quit());
