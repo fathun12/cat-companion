@@ -325,23 +325,23 @@ Perilaku yang sudah jalan:
 - Tidak ada aktivitas selama `SLEEP_AFTER_MS` (5 menit): tidur melingkar (kepala turun ke badan lewat `SLEEP_HEAD_DROP`, mata tidur, gelembung). Aktivitas keyboard, klik, atau scroll membangunkan. Gerak mouse saja tidak.
 - Posisi hati dan gelembung bergantung pada posisi gambar di kanvas pemilik (keduanya diekspor di tengah kanvas, sehingga hati dipindah lewat kode). - Pola digambar lewat kode. Posisinya dihitung otomatis dari kotak pembatas piksel tiap layer (kepala dan badan punya titik tengah sendiri karena kucing sedikit serong); geser manual lewat `CX_HEAD` dan `CX_BODY` di `look.js`.
 
-### Pose mengetik, mode panas, lelah (ditambahkan 25 Okt 2026; logika animasi bagus, ASET BERMASALAH)
+### Pose mengetik, mode panas, lelah (25 Okt 2026; SELESAI, dirakit dari layer terpisah)
 
-Aset:
-- `assets/cat/typing/click1.png` dan `click2.png`: dua pose ketik, kanvas 48x48, kucing + papan ketik dalam SATU GAMBAR UTUH (bukan layer terpisah). Kucing digambar lebih besar dari kucing idle (lebar sekitar 40 vs 40, kepala 27 vs 24 piksel; lantai disejajarkan lewat `TYPE_SHIFT_Y`).
-- `assets/cat/eyes/mata_tertutup2.png`: mata tertutup (garis di y20-24), digambar pas di kepala pose click1, BUKAN kepala idle (mata idle di y12-15).
+Aset (`assets/cat/typing/`, kanvas 48x48, latar transparan, semua bertumpuk di 0,0):
+- `click1.png` dan `click2.png`: badan + kedua kaki + papan ketik dalam satu gambar. Bedanya hanya tombol yang ditekan (kiri di click1, kanan di click2); keduanya bergantian per ketikan.
+- Layer terpisah: `kepala`, `kuping`, `kumis`, `mata`, `pupil`, `ekor`.
 - `assets/effects/gelembung2.png` dan `gelembung4.png`: gelembung frustrasi 4x4 piksel (kanvas 48x48).
+- `assets/cat/eyes/mata_tertutup2.png` tidak dipakai lagi (mata tertutup dibuat otomatis dari `typing/mata.png`).
 
 Kode:
-- `state.js`: konstanta `TYPE_HOLD_MS`, `TYPE_SHIFT_Y`, `TFEET_X/Y`, `TAIL_PIVOT`, `TIRED_DX/DY`, `HEAT_KPS`, `HEAT_RISE_MS`, `HEAT_FALL_MS`, `FRUSTRATE_AT`, `HOT_MS`, `TIRED_MS`; data `typing`, `angryImgs`, `keyTimes`, `typeFrame`.
-- `rig.js`: `buildTyping` (3 set pose: click1, click2, lelah; tiap set = papan ketik + badan + ekor, masing-masing punya versi merah) dan `applyLook` yang juga mewarnai pose ketik.
-- `look.js`: `recolorTyping` (mewarnai pose ketik).
-- `input.js`: event `key` mengisi `keyTimes` (hanya WAKTU, bukan tombol) dan membalik `typeFrame`.
-- `animate.js`: blok "Mengetik cepat" dan "Pose mengetik".
+- `state.js`: konstanta `TYPE_HOLD_MS`, `TYPE_SHIFT_Y`, `TAIL_PIVOT`, `WHISKER_DX/DY`, `HEAT_KPS`, `HEAT_RISE_MS`, `HEAT_FALL_MS`, `FRUSTRATE_AT`, `HOT_MS`, `TIRED_MS`; data `typ` (layer pose ketik), `angryImgs`, `keyTimes`, `typeFrame`.
+- `look.js`: `recolorAll` mewarnai juga layer pose ketik (`click1`, `click2`, `t_kepala`, `t_kuping`, `t_ekor`) memakai `PATTERNS` yang sama dengan layer idle (lewat `PID`), dan membuat versi merah (akhiran `_H`). Papan ketik (abu-abu) tidak diwarnai (`KEEP_MID`). `closedEyes` membuat mata tertutup dari `typing/mata.png`. Kumis, mata, pupil tidak diwarnai.
+- `rig.js`: `buildTyping` merakit layer; urutan tumpuk dari bawah: ekor, click, kuping, kepala, kumis, mata, pupil, mata tertutup.
+- `animate.js`: blok "Pose mengetik".
 
-Alur perilaku: ngetik pelan = pose click1/click2 bergantian per ketikan, badan turun tiap ketikan (`kick`), ekor berkibas (makin cepat ngetik makin cepat kibasan); ngetik ngebut terus-menerus (>= `HEAT_KPS` ketikan/detik) = gelembung frustrasi lalu memerah bertahap lalu bergetar (`HOT_MS`); lalu lelah (`TIRED_MS`): mata tertutup + gelembung, merah memudar; lalu normal.
+Alur perilaku: ngetik pelan = click1/click2 bergantian per ketikan, kepala turun tiap ketikan (`kick`), ekor berkibas (makin cepat ngetik makin cepat); ngetik ngebut terus (>= `HEAT_KPS` ketikan/detik) = gelembung frustrasi, ekor kibas seperti mode bermain (0,35 dtk, 25 derajat), lalu memerah bertahap (hanya garis tepi merah, badan hitam tetap hitam) dan bergetar (`HOT_MS`); saat memerah pupil sesekali berputar pusing; lalu lelah (`TIRED_MS`): mata jadi garis + gelembung, merah memudar; lalu normal.
 
-MASALAH UTAMA (belum selesai): `recolorTyping` memotong gambar utuh click1/click2 memakai TEBAKAN koordinat (`isTail`, `isHead`, `tailLayer`, `findEyes`, `whiskerMask`). Akibatnya: pola badan bocor/tembus aneh, kumis berwarna badan, bintik hitam salah tempat di kuping dan ekor, dan kaki tampak di depan kepala. Kucing idle (yang sudah dipisah per komponen) tidak punya masalah ini. Pemilik marah karena upayanya memisah komponen tidak dihargai. JANGAN lanjutkan pendekatan memotong gambar utuh. Perbaikan warna merah (`warm()`: garis tepi jadi merah, badan gelap tetap gelap) dan perbaikan kumis sudah diberikan tetapi harus diuji ulang setelah layer terpisah tersedia.
+JANGAN memotong atau menebak koordinat gambar utuh untuk pose ketik. Kalau desain diganti, timpa PNG dengan nama dan kanvas yang sama.
 
 Keputusan yang menyimpang dari rencana awal:
 - Struktur rencana awal (`src/renderer/pet/core|brain|animation` dengan file TypeScript) TIDAK dipakai. Kode kucing dipecah jadi modul JavaScript datar di `src/renderer/pet/` (lihat daftar di atas). State machine formal (`brain/`) belum dibuat; status masih berupa flag di `state.js`.
@@ -351,14 +351,7 @@ Keputusan yang menyimpang dari rencana awal:
 
 ## 8. Langkah berikutnya untuk AI penerus
 
-0. **PRIORITAS 1: perbaiki pose mengetik memakai layer terpisah** (baca dulu bagian 7 "Pose mengetik").
-   - Kenyataan: aset click1/click2 saat ini SATU GAMBAR UTUH. Pemilik sedang memisah komponennya seperti kucing idle dan akan memberikan PNG terpisah. Urutan layer di LibreSprite dari atas ke bawah: PUPIL, MATA, KUMIS, KEPALA, KUPING, KAKI_KIRI, KAKI_KANAN, KEY_UNCLICKED, KEY_CLICKED, BADAN, EKOR. Nama file yang direncanakan (diawali `ketik_` di Downloads, lalu dipindah ke `assets/cat/typing/` tanpa awalan): `pupil`, `mata`, `kumis`, `kepala`, `kuping`, `kaki_kiri`, `kaki_kanan`, `key_unclicked`, `key_clicked`, `badan`, `ekor`. Kanvas 48x48, latar transparan.
-   - JANGAN menebak atau memotong gambar utuh. Kalau file terpisah belum ada di `assets/cat/typing/`, minta pemilik memberi kabar dulu.
-   - Setelah file ada: (a) minta dump piksel tiap file lewat clipboard (aturan 13 dan 14); (b) rakit pose ketik dari layer-layer itu seperti rig idle, dengan urutan tumpuk di atas (kaki di bawah kepala, bukan di depan), grup kepala dan badan, pivot ekor dan kuping; simpan di `rig.json` atau `rig-typing.json`; (c) pakai ulang `look.js` (`recolorAll`, `PATTERNS`) per layer TANPA heuristik koordinat; kumis, mata, pupil dan papan ketik tidak diwarnai ulang; (d) hapus `recolorTyping`, `isTail`, `isHead`, `tailLayer`, `findEyes`, `whiskerMask`, dan `buildTyping` versi lama.
-   - Pertahankan animasi yang sudah dipuji pemilik: badan turun tiap ketikan (`kick`), ekor berkibas makin cepat saat ngetik makin cepat, merah bertahap, getar, lelah, gelembung. Tambahkan: kaki kiri dan kanan bergantian menekan, papan ketik ganti ke KEY_CLICKED sebentar.
-   - Merah saat panas: hanya garis tepi yang memerah, badan hitam tetap hitam (jangan jadi warna kulit).
-   - Mata lelah: `mata_tertutup2.png` digambar untuk posisi kepala pose ketik; posisikan ulang atau minta pemilik menggambar ulang.
-   - Pemilik tidak puas dengan desain asetnya dan akan mengganti PNG. Kode harus tetap jalan bila PNG ditimpa dengan nama dan kanvas yang sama.
+0. (SELESAI) Pose mengetik sudah dirakit dari layer terpisah. Yang mungkin masih disetel pemilik: posisi gelembung2/4 (digambar untuk kepala lama), `TYPE_SHIFT_Y`, `TAIL_PIVOT`, `WHISKER_DX/DY`. Prioritas berikutnya: catatan sematan dan pesan pengingat kustom (Phase 6/7), lalu gulungan tisu saat scroll (menunggu aset dari pemilik), lalu Phase 8.
 
 1. Kerjakan **Phase 5** (interaksi mouse): mata ikut kursor, drag dengan efek mochi (squash and stretch), elus kepala (hover lama lalu hati dan dengkur), berburu kursor saat mouse digerakkan cepat, reaksi scroll (gulungan tisu), mode panas saat mengetik sangat cepat. Event `mouse` dan `scroll` sudah dikirim dari `main.js`, tetapi posisi kursor global belum, jadi tambahkan data koordinat (hanya posisi, aman).
 2. (Opsional) Migrasi ke TypeScript bila pemilik mau. Pemecahan modul sudah selesai.
