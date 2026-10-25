@@ -14,6 +14,9 @@ let nextLook = 3000, lookX = 0;
 let heat = 0; // 0 = tenang, 1 = memerah
 let hot = false, hotUntil = 0, tiredUntil = 0;
 let kick = 0, kickV = 0, seenKey = 0, wagPhase = 0;
+let nextDizzy = 0, dizzyStart = -10000; // pupil pusing saat memerah
+const DIZZY_MS = 880; // 8 langkah x 110 ms = 2 putaran
+const DIZZY_RING = [[0, -1], [1, 0], [0, 1], [-1, 0]]; // atas, kanan, bawah, kiri
 
 const spring = (pos, vel, target, k, c, sec) => {
   vel += ((target - pos) * k - vel * c) * sec;
@@ -150,17 +153,21 @@ function frame(t) {
   }
   const frustrated = !hot && !tired && heat > S.FRUSTRATE_AT;
 
-  // ----- Pose mengetik (click1/click2) menggantikan kucing biasa -----
+  // ----- Pose mengetik (layer terpisah) menggantikan kucing biasa -----
   const showTyping =
     !S.sleeping && !S.dragging && (t - S.lastKey < S.TYPE_HOLD_MS || hot || tired || heat > 0);
   for (const id in groups) groups[id].style.display = showTyping ? 'none' : '';
-  const active = tired ? 2 : S.typeFrame;
-  S.typing.forEach((set, i) => (set.box.style.display = showTyping && i === active ? '' : 'none'));
+  const T = S.typ;
+  T.box.style.display = showTyping ? '' : 'none';
+  const active = tired ? 0 : S.typeFrame; // kaki bergantian: click1 <-> click2
+  T.clicks.forEach((c, i) => {
+    const on = i === active ? '' : 'none';
+    c.img.style.display = on;
+    c.imgH.style.display = on;
+  });
 
   if (showTyping) {
-    const cur = S.typing[active];
-
-    // Setiap ketikan: kucing menekan sedikit ke bawah, lalu memantul kembali
+    // Setiap ketikan: kepala menekan sedikit ke bawah, lalu memantul kembali
     if (S.lastKey !== seenKey) {
       seenKey = S.lastKey;
       kickV += 26;
@@ -168,15 +175,36 @@ function frame(t) {
     [kick, kickV] = spring(kick, kickV, 0, 260, 14, fsec);
     kick = Math.min(kick, 2);
     const dip = Math.min(2, breath + Math.max(0, Math.round(kick))) * SCALE;
-    const sway = tired ? 0 : Math.sin(s * 9) * 1.2 * spd; // goyang kecil saat mengetik
-    cur.lean.style.transform = `translateY(${dip}px) rotate(${bodyDeg + sway}deg)`;
+    T.headBox.style.transform = `translateY(${dip}px)`;
 
-    // Ekor berkibas: makin cepat mengetik, makin cepat kibasannya
-    const wagPeriod = tired ? 3 : hot ? 0.3 : frustrated ? 0.35 : 1.4 - 1.0 * spd;
-    const wagAmp = tired ? 5 : hot || frustrated ? 22 : 10 + 12 * spd;
+    // Mata: melihat ke papan ketik; tertutup saat lelah atau kedip
+    const shut = tired || t < blinkEnd;
+    T.mata.style.display = shut ? 'none' : '';
+    T.pupil.style.display = shut ? 'none' : '';
+    T.closed.style.display = shut ? '' : 'none';
+    // Pupil: menunduk ke papan ketik; saat memerah sesekali berputar pusing
+    let pdx = 0, pdy = 1;
+    if (hot) {
+      if (t >= nextDizzy) {
+        dizzyStart = t;
+        nextDizzy = t + rand(1800, 3000);
+      }
+      const dz = t - dizzyStart;
+      if (dz < DIZZY_MS) [pdx, pdy] = DIZZY_RING[Math.floor(dz / 110) % 4];
+    } else {
+      nextDizzy = t + 500; // putaran pertama 0,5 detik setelah mulai memerah
+      dizzyStart = -10000;
+    }
+    T.pupil.style.transform = `translate(${pdx * SCALE}px, ${pdy * SCALE}px)`;
+
+    // Ekor berkibas: makin cepat mengetik, makin cepat kibasannya.
+    // Saat gelembung muncul atau memerah = sama persis dengan mode excited (0,35 dtk, 25 derajat)
+    const excited = frustrated || hot;
+    const wagPeriod = tired ? 3 : excited ? 0.35 : 1.4 - 1.0 * spd;
+    const wagAmp = tired ? 5 : excited ? 25 : 10 + 12 * spd;
     wagPhase += ((dt / 1000) * (2 * Math.PI)) / wagPeriod;
     const wag = Math.round((Math.sin(wagPhase) * wagAmp) / 5) * 5;
-    cur.tailBox.style.transform = `rotate(${wag}deg)`;
+    T.tailBox.style.transform = `rotate(${wag}deg)`;
 
     // Merah: naik pelan saat panas, penuh saat memerah, memudar saat lelah
     const red = hot
@@ -184,8 +212,10 @@ function frame(t) {
       : tired
         ? Math.max(0, (tiredUntil - t) / S.TIRED_MS)
         : Math.max(0, (heat - 0.3) / 0.7);
-    cur.catH.style.opacity = red;
-    cur.tailH.style.opacity = red;
+    T.tailH.style.opacity = red;
+    T.kupingH.style.opacity = red;
+    T.kepalaH.style.opacity = red;
+    T.clicks.forEach((c) => (c.imgH.style.opacity = red));
   }
 
   // Gelembung: frustrasi dan memerah cepat, lelah pelan

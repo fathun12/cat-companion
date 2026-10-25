@@ -3,15 +3,27 @@ const path = require('path');
 
 const ASSETS = path.join(__dirname, '..', '..', '..', 'assets');
 
-// Layer yang diwarnai ulang dan lokasi filenya
+// Layer yang diwarnai ulang dan lokasi filenya.
+// click1, click2, t_* = layer pose mengetik (assets/cat/typing/)
 const SRC = {
   badan: 'cat/body/badan.png',
   kepala: 'cat/parts/kepala.png',
   kuping: 'cat/parts/kuping.png',
   ekor: 'cat/parts/ekor.png',
   tangan: 'cat/parts/tangan.png',
+  click1: 'cat/typing/click1.png',
+  click2: 'cat/typing/click2.png',
+  t_kepala: 'cat/typing/kepala.png',
+  t_kuping: 'cat/typing/kuping.png',
+  t_ekor: 'cat/typing/ekor.png',
 };
 const RECOLOR = Object.keys(SRC);
+
+// Layer pose mengetik memakai pola yang sama dengan layer idle-nya.
+// Layer di daftar ini juga dibuatkan versi merah (hasilnya diberi akhiran _H).
+const PID = { click1: 'badan', click2: 'badan', t_kepala: 'kepala', t_kuping: 'kuping', t_ekor: 'ekor' };
+// click1/click2 memuat papan ketik: warna abu-abunya dibiarkan apa adanya
+const KEEP_MID = new Set(['click1', 'click2']);
 
 // Titik tengah pola, relatif terhadap kotak pembatas tiap layer (0 kiri, 1 kanan).
 // Kepala dan badan dihitung sendiri-sendiri. Untuk geser manual: kecilkan = ke kiri.
@@ -98,20 +110,39 @@ async function getSource(id) {
   return data;
 }
 
-// Mengembalikan { badan: dataURL, kepala: dataURL, ... } yang sudah diwarnai
+// Mengembalikan { badan: dataURL, kepala: dataURL, click1: ..., click1_H: ... } yang sudah diwarnai.
+// Akhiran _H = versi merah (mode panas), hanya untuk layer pose mengetik.
 async function recolorAll(look) {
   const body = hex(look.body);
   const outline = hex(look.outline);
   const cols = [body, hex(look.p1), hex(look.p2)];
   const fn = PATTERNS[look.pattern] || PATTERNS.polos;
+  const RED = [235, 45, 45];
+
+  // Garis tepi jadi merah, badan gelap tetap gelap, badan terang sedikit memerah
+  const warm = (c) => {
+    if (c[0] === outline[0] && c[1] === outline[1] && c[2] === outline[2]) return RED;
+    const L = c[0] * 0.3 + c[1] * 0.59 + c[2] * 0.11;
+    if (L < 60) return c;
+    return c.map((v, k) => Math.round(v + (RED[k] - v) * 0.4));
+  };
+  const toUrl = (img) => {
+    const cv = document.createElement('canvas');
+    cv.width = img.width;
+    cv.height = img.height;
+    cv.getContext('2d').putImageData(img, 0, 0);
+    return cv.toDataURL();
+  };
   const out = {};
 
   for (const id of RECOLOR) {
+    const pid = PID[id] || id; // nama pola yang dipakai
     const src = await getSource(id);
     const w = src.width;
     const h = src.height;
     const bb = src.bb;
     const img = new ImageData(new Uint8ClampedArray(src.data), w, h);
+    const imgH = PID[id] ? new ImageData(new Uint8ClampedArray(src.data), w, h) : null;
     const d = img.data;
 
     for (let y = 0; y < h; y++) {
@@ -120,22 +151,68 @@ async function recolorAll(look) {
         if (d[i + 3] === 0) continue;
         const L = d[i] * 0.3 + d[i + 1] * 0.59 + d[i + 2] * 0.11;
         let c;
-        if (L < 40) c = cols[fn(id, x - bb.minX, y - bb.minY, bb.w, bb.h)];
+        if (L < 40) c = cols[fn(pid, x - bb.minX, y - bb.minY, bb.w, bb.h)];
         else if (L > 215) c = outline;
+        else if (KEEP_MID.has(id)) continue; // papan ketik: tidak diwarnai
         else c = body.map((v, k) => v + (outline[k] - v) * (L / 255));
         d[i] = c[0];
         d[i + 1] = c[1];
         d[i + 2] = c[2];
+        if (imgH) {
+          const hc = warm(c);
+          imgH.data[i] = hc[0];
+          imgH.data[i + 1] = hc[1];
+          imgH.data[i + 2] = hc[2];
+        }
       }
     }
 
-    const cv = document.createElement('canvas');
-    cv.width = w;
-    cv.height = h;
-    cv.getContext('2d').putImageData(img, 0, 0);
-    out[id] = cv.toDataURL();
+    out[id] = toUrl(img);
+    if (imgH) out[id + '_H'] = toUrl(imgH);
   }
   return out;
+}
+
+// Mata tertutup pose mengetik: diambil dari layer mata.png,
+// hanya baris tengah yang disisakan (jadi satu garis per mata), warna garis tepi.
+async function closedEyes(look) {
+  const outline = hex(look.outline);
+  const img = await loadImage(dataUrl('cat/typing/mata.png'));
+  const w = img.naturalWidth;
+  const h = img.naturalHeight;
+  const cv = document.createElement('canvas');
+  cv.width = w;
+  cv.height = h;
+  const ctx = cv.getContext('2d');
+  ctx.drawImage(img, 0, 0);
+  const data = ctx.getImageData(0, 0, w, h);
+  const d = data.data;
+  let minY = h, maxY = -1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (d[(y * w + x) * 4 + 3] > 0) {
+        minY = Math.min(minY, y);
+        maxY = Math.max(maxY, y);
+      }
+    }
+  }
+  const mid = Math.round((minY + maxY) / 2);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      if (d[i + 3] === 0) continue;
+      if (y === mid) {
+        d[i] = outline[0];
+        d[i + 1] = outline[1];
+        d[i + 2] = outline[2];
+        d[i + 3] = 255;
+      } else {
+        d[i + 3] = 0;
+      }
+    }
+  }
+  ctx.putImageData(data, 0, 0);
+  return cv.toDataURL();
 }
 
 // Gambar kucing utuh (untuk pratinjau di panel)
@@ -154,202 +231,4 @@ async function composite(look) {
   return c;
 }
 
-// ===== Pose mengetik (click1.png, click2.png) =====
-const TYPING_FILES = ['cat/typing/click1.png', 'cat/typing/click2.png'];
-const EYES_CLOSED = 'cat/eyes/mata_tertutup2.png';
-
-// Pembagian bagian di gambar click (koordinat piksel, kanvas 48x48)
-const isTail = (x, y) => y <= 21 && x >= (y <= 16 ? 36 : 40);
-// Layer ekor ikut membawa 2 baris badan di bawahnya supaya tidak bolong saat berkibas
-const tailLayer = (x, y) => isTail(x, y) || (y >= 22 && y <= 23 && x >= 40);
-const isHead = (x, y) => y <= 24 && x <= 35 && !isTail(x, y);
-const lum = (d, i) => d[i] * 0.3 + d[i + 1] * 0.59 + d[i + 2] * 0.11;
-
-// Mata = bagian hitam kecil di kepala + cincin putih di sekelilingnya (tidak diwarnai)
-function findEyes(d, w, h) {
-  const keep = new Uint8Array(w * h);
-  const seen = new Uint8Array(w * h);
-  const black = (p) => d[p * 4 + 3] > 0 && lum(d, p * 4) < 40;
-  const white = (p) => d[p * 4 + 3] > 0 && lum(d, p * 4) > 215;
-  for (let s = 0; s < w * h; s++) {
-    if (seen[s] || !black(s)) continue;
-    const comp = [s];
-    seen[s] = 1;
-    for (let k = 0; k < comp.length; k++) {
-      const x = comp[k] % w;
-      const y = (comp[k] / w) | 0;
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        const nx = x + dx;
-        const ny = y + dy;
-        if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
-        const n = ny * w + nx;
-        if (!seen[n] && black(n)) {
-          seen[n] = 1;
-          comp.push(n);
-        }
-      }
-    }
-    if (comp.length >= 30 || !comp.every((p) => isHead(p % w, (p / w) | 0))) continue;
-    for (const p of comp) {
-      keep[p] = 1;
-      const x = p % w;
-      const y = (p / w) | 0;
-      for (let dy = -1; dy <= 1; dy++) {
-        for (let dx = -1; dx <= 1; dx++) {
-          const nx = x + dx;
-          const ny = y + dy;
-          if (nx >= 0 && ny >= 0 && nx < w && ny < h && white(ny * w + nx)) keep[ny * w + nx] = 1;
-        }
-      }
-    }
-  }
-  return keep;
-}
-
-// Mengembalikan { sets: [click1, click2, lelah], eyes } berisi dataURL.
-// Tiap set: kb (papan ketik), cat, catH (merah), tail, tailH (merah)
-async function recolorTyping(look) {
-  const body = hex(look.body);
-  const outline = hex(look.outline);
-  const cols = [body, hex(look.p1), hex(look.p2)];
-  const fn = PATTERNS[look.pattern] || PATTERNS.polos;
-  // Versi merah: garis tepi jadi merah, badan gelap tetap gelap, badan terang sedikit memerah
-  const warm = (c) => {
-    if (c[0] === outline[0] && c[1] === outline[1] && c[2] === outline[2]) return [235, 45, 45];
-    const L = c[0] * 0.3 + c[1] * 0.59 + c[2] * 0.11;
-    if (L < 60) return c;
-    return c.map((v, k) => Math.round(v + ([235, 45, 45][k] - v) * 0.4));
-  };
-  const url = (img) => {
-    const cv = document.createElement('canvas');
-    cv.width = img.width;
-    cv.height = img.height;
-    cv.getContext('2d').putImageData(img, 0, 0);
-    return cv.toDataURL();
-  };
-  const idOf = (x, y) => (isTail(x, y) ? 'ekor' : isHead(x, y) ? 'kepala' : 'badan');
-  const frames = [];
-
-  for (const file of TYPING_FILES) {
-    const im = await loadImage(dataUrl(file));
-    const w = im.naturalWidth;
-    const h = im.naturalHeight;
-    const cv = document.createElement('canvas');
-    cv.width = w;
-    cv.height = h;
-    const ctx = cv.getContext('2d');
-    ctx.drawImage(im, 0, 0);
-    const d = ctx.getImageData(0, 0, w, h).data;
-    const keep = findEyes(d, w, h);
-
-    // Kotak pembatas tiap bagian (untuk pola)
-    const bb = {};
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        const i = (y * w + x) * 4;
-        if (d[i + 3] === 0) continue;
-        const L = lum(d, i);
-        if (L >= 40 && L <= 215) continue;
-        const id = idOf(x, y);
-        const b = bb[id] || (bb[id] = { x0: x, x1: x, y0: y, y1: y });
-        b.x0 = Math.min(b.x0, x);
-        b.x1 = Math.max(b.x1, x);
-        b.y0 = Math.min(b.y0, y);
-        b.y1 = Math.max(b.y1, y);
-      }
-    }
-
-    // Kumis = piksel hitam di ujung kiri siluet (sebelah kirinya transparan), maksimal 5 piksel ke kanan
-    const whiskerMask = new Uint8Array(w * h);
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        const p = y * w + x;
-        if (d[p * 4 + 3] === 0 || lum(d, p * 4) >= 40) continue;
-        if (x > 0 && d[(p - 1) * 4 + 3] !== 0) continue; // bukan ujung kiri
-        for (let k = 0; k < 5 && x + k < w; k++) {
-          const q = p + k;
-          if (d[q * 4 + 3] === 0 || lum(d, q * 4) >= 40) break;
-          whiskerMask[q] = 1;
-        }
-      }
-    }
-
-    const o = {};
-    for (const k of ['kb', 'cat', 'catH', 'tail', 'tailH', 'tired', 'tiredH']) o[k] = new ImageData(w, h);
-    const put = (buf, i, c) => {
-      buf.data[i] = c[0];
-      buf.data[i + 1] = c[1];
-      buf.data[i + 2] = c[2];
-      buf.data[i + 3] = 255;
-    };
-
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        const p = y * w + x;
-        const i = p * 4;
-        if (d[i + 3] === 0) continue;
-        const L = lum(d, i);
-        const orig = [d[i], d[i + 1], d[i + 2]];
-        if (L >= 40 && L <= 215) {
-          put(o.kb, i, orig); // papan ketik: tidak diwarnai
-          continue;
-        }
-        const id = idOf(x, y);
-        const b = bb[id];
-        const face = cols[fn(id, x - b.x0, y - b.y0, b.x1 - b.x0 + 1, b.y1 - b.y0 + 1)];
-        const whisker = whiskerMask[p] === 1; // kumis tetap hitam
-        let c = orig;
-        let ch = orig;
-        let ct = orig; // versi lelah
-        let cth = orig;
-        if (keep[p] && !whisker) {
-          ct = face; // mata dihapus (jadi warna wajah), nanti ditimpa mata tertutup
-          cth = warm(face);
-        } else if (!whisker) {
-          c = L < 40 ? face : outline;
-          ch = warm(c);
-          ct = c;
-          cth = ch;
-        }
-        if (!isTail(x, y)) {
-          put(o.cat, i, c);
-          put(o.catH, i, ch);
-          put(o.tired, i, ct);
-          put(o.tiredH, i, cth);
-        }
-        if (tailLayer(x, y)) {
-          put(o.tail, i, c);
-          put(o.tailH, i, ch);
-        }
-      }
-    }
-    frames.push(o);
-  }
-
-  const mk = (o) => ({ kb: url(o.kb), cat: url(o.cat), catH: url(o.catH), tail: url(o.tail), tailH: url(o.tailH) });
-  const f0 = frames[0];
-  const sets = [
-    mk(frames[0]),
-    mk(frames[1]),
-    { ...mk(f0), cat: url(f0.tired), catH: url(f0.tiredH) }, // pose lelah = click1 tanpa mata
-  ];
-
-  // Mata tertutup: semua piksel putih diganti warna garis tepi
-  const em = await loadImage(dataUrl(EYES_CLOSED));
-  const ec = document.createElement('canvas');
-  ec.width = em.naturalWidth;
-  ec.height = em.naturalHeight;
-  const ectx = ec.getContext('2d');
-  ectx.drawImage(em, 0, 0);
-  const ed = ectx.getImageData(0, 0, ec.width, ec.height);
-  for (let i = 0; i < ed.data.length; i += 4) {
-    if (ed.data[i + 3] === 0) continue;
-    ed.data[i] = outline[0];
-    ed.data[i + 1] = outline[1];
-    ed.data[i + 2] = outline[2];
-    ed.data[i + 3] = 255;
-  }
-  return { sets, eyes: url(ed) };
-}
-
-module.exports = { PRESETS, recolorAll, recolorTyping, composite };
+module.exports = { PRESETS, recolorAll, closedEyes, composite };

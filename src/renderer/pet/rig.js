@@ -31,38 +31,51 @@ const mkDiv = (parent) => {
   return d;
 };
 
-// Pose mengetik: 3 set (click1, click2, lelah).
-// Tiap set = papan ketik (diam) + kucing (turun/miring) + ekor (berkibas).
-// Kucing dan ekor punya versi merah; seberapa merah diatur lewat opacity di animate.js.
+// Pose mengetik, disusun dari layer terpisah di assets/cat/typing/.
+// Urutan tumpuk dari bawah: ekor, click1/click2 (badan + kaki + papan ketik),
+// kuping, kepala, kumis, mata, pupil, mata tertutup.
+// Bagian berwarna punya versi merah (H) di atasnya; seberapa merah diatur lewat opacity di animate.js.
 function buildTyping() {
   const shift = S.TYPE_SHIFT_Y * S.SCALE + 'px';
-  for (let i = 0; i < 3; i++) {
-    const box = mkDiv(S.stage);
-    box.style.display = 'none';
-    box.style.transform = `translateY(${shift})`;
-    const kb = mkImg();
-    box.appendChild(kb);
-    const lean = mkDiv(box);
-    lean.style.transformOrigin = pct(S.TFEET_X) + ' ' + pct(S.TFEET_Y);
-    const tailBox = mkDiv(lean);
-    tailBox.style.transformOrigin = pct(S.TAIL_PIVOT[0]) + ' ' + pct(S.TAIL_PIVOT[1]);
-    const tail = mkImg();
-    const tailH = mkImg();
-    tailH.style.opacity = '0';
-    tailBox.append(tail, tailH);
-    const cat = mkImg();
-    const catH = mkImg();
-    catH.style.opacity = '0';
-    lean.append(cat, catH);
-    const set = { box, kb, lean, tailBox, tail, tailH, cat, catH, eyes: null };
-    if (i === 2) {
-      set.eyes = mkImg();
-      set.eyes.style.transform = `translate(${S.TIRED_DX * S.SCALE}px, ${S.TIRED_DY * S.SCALE}px)`;
-      lean.appendChild(set.eyes);
-    }
-    S.typing.push(set);
-  }
-  // Gelembung frustrasi (digambar di kanvas yang sama dengan pose click)
+  const T = {};
+  S.typ = T;
+  T.box = mkDiv(S.stage);
+  T.box.style.display = 'none';
+  T.box.style.transform = `translateY(${shift})`;
+
+  // Gambar dasar + versi merahnya
+  const pair = (parent) => {
+    const base = mkImg();
+    const hot = mkImg();
+    hot.style.opacity = '0';
+    parent.append(base, hot);
+    return [base, hot];
+  };
+
+  T.tailBox = mkDiv(T.box);
+  T.tailBox.style.transformOrigin = pct(S.TAIL_PIVOT[0]) + ' ' + pct(S.TAIL_PIVOT[1]);
+  [T.tail, T.tailH] = pair(T.tailBox);
+
+  T.clicks = [0, 1].map(() => {
+    const [img, imgH] = pair(T.box);
+    return { img, imgH };
+  });
+
+  T.headBox = mkDiv(T.box);
+  [T.kuping, T.kupingH] = pair(T.headBox);
+  [T.kepala, T.kepalaH] = pair(T.headBox);
+  T.kumis = mkImg();
+  T.mata = mkImg();
+  T.pupil = mkImg();
+  T.closed = mkImg();
+  T.kumis.src = S.BASE + 'cat/typing/kumis.png'; // tidak diwarnai ulang
+  T.kumis.style.transform = `translateY(${S.WHISKER_DY * S.SCALE}px)`;
+  T.mata.src = S.BASE + 'cat/typing/mata.png';
+  T.pupil.src = S.BASE + 'cat/typing/pupil.png';
+  T.closed.style.display = 'none';
+  T.headBox.append(T.kumis, T.mata, T.pupil, T.closed);
+
+  // Gelembung frustrasi (digambar di kanvas yang sama dengan pose ketik)
   for (const f of ['effects/gelembung2.png', 'effects/gelembung4.png']) {
     const img = mkImg();
     img.src = S.BASE + f;
@@ -122,19 +135,21 @@ async function buildRig() {
 
 async function applyLook(look) {
   const urls = await Look.recolorAll(look);
-  for (const id in urls) S.parts[id].src = urls[id];
+  for (const id in urls) if (S.parts[id]) S.parts[id].src = urls[id];
 
   // Pose mengetik ikut warna dan pola yang sama
-  const ty = await Look.recolorTyping(look);
-  ty.sets.forEach((u, i) => {
-    const s = S.typing[i];
-    s.kb.src = u.kb;
-    s.cat.src = u.cat;
-    s.catH.src = u.catH;
-    s.tail.src = u.tail;
-    s.tailH.src = u.tailH;
-  });
-  S.typing[2].eyes.src = ty.eyes;
+  const T = S.typ;
+  T.tail.src = urls.t_ekor;
+  T.tailH.src = urls.t_ekor_H;
+  T.clicks[0].img.src = urls.click1;
+  T.clicks[0].imgH.src = urls.click1_H;
+  T.clicks[1].img.src = urls.click2;
+  T.clicks[1].imgH.src = urls.click2_H;
+  T.kuping.src = urls.t_kuping;
+  T.kupingH.src = urls.t_kuping_H;
+  T.kepala.src = urls.t_kepala;
+  T.kepalaH.src = urls.t_kepala_H;
+  T.closed.src = await Look.closedEyes(look);
 }
 
 // Terapkan tampilan tersimpan, lalu dengarkan perubahan dari panel kustomisasi
