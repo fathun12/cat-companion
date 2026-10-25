@@ -8,15 +8,32 @@ let win;
 let tray; // harus disimpan di variabel supaya ikon tidak hilang
 
 app.whenReady().then(() => {
-  const { width, height } = screen.getPrimaryDisplay().workAreaSize;
-
   const WIN = 260;
+
+  // Posisi terakhir disimpan di pos.json; dipakai lagi kalau masih berada di salah satu monitor
+  const posFile = path.join(app.getPath('userData'), 'pos.json');
+  const defaultPos = () => {
+    const wa = screen.getPrimaryDisplay().workArea;
+    return { x: wa.x + wa.width - WIN - 50, y: wa.y + wa.height - WIN - 20 };
+  };
+  const onScreen = (p) =>
+    screen.getAllDisplays().some((d) => {
+      const b = d.workArea;
+      const cx = p.x + WIN / 2;
+      const cy = p.y + WIN / 2;
+      return cx > b.x && cx < b.x + b.width && cy > b.y && cy < b.y + b.height;
+    });
+  let startPos = defaultPos();
+  try {
+    const p = JSON.parse(fs.readFileSync(posFile, 'utf8'));
+    if (Number.isFinite(p.x) && Number.isFinite(p.y) && onScreen(p)) startPos = p;
+  } catch (e) {}
 
   win = new BrowserWindow({
     width: WIN,
     height: WIN,
-    x: width - WIN - 50,
-    y: height - WIN - 20,
+    x: startPos.x,
+    y: startPos.y,
     transparent: true,
     frame: false,
     alwaysOnTop: true,
@@ -88,7 +105,23 @@ app.whenReady().then(() => {
   ipcMain.on('drag-end', () => {
     clearInterval(dragTimer);
     dragTimer = null;
+    const [x, y] = win.getPosition();
+    try {
+      fs.writeFileSync(posFile, JSON.stringify({ x, y }));
+    } catch (e) {}
   });
+
+  // Monitor dicabut atau resolusi berubah: kalau kucing jadi di luar layar, pindah ke monitor utama
+  const rescue = () => {
+    if (!win || win.isDestroyed()) return;
+    const [x, y] = win.getPosition();
+    if (!onScreen({ x, y })) {
+      const p = defaultPos();
+      win.setPosition(p.x, p.y);
+    }
+  };
+  screen.on('display-removed', rescue);
+  screen.on('display-metrics-changed', rescue);
 
   // (Bermain dengan kursor ada di pet.js; jendela tidak lagi berpindah sendiri)
 
