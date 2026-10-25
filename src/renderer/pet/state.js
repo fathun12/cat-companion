@@ -12,6 +12,8 @@ const S = {
   FOLLOW_BODY: 1, // seberapa jauh badan ikut
   PLAY_SPEED: 700, // kecepatan kursor (px/detik) agar kucing bermain
   PLAY_RADIUS: 140, // jarak kursor dari kucing agar dianggap "di depan kucing"
+  FEET_X: 0.46, // posisi kaki di gambar (0 kiri, 1 kanan); badan miring dari titik ini
+  FEET_Y: 0.82, // posisi telapak kaki (0 atas, 1 bawah); kaki tetap menapak di titik ini
 
   // ===== Elemen dan data (diisi saat start) =====
   stage: null,

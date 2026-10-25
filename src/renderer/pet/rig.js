@@ -52,6 +52,7 @@ async function buildRig() {
     if (S.parts[id]) S.parts[id].style.transformOrigin = pct(x) + ' ' + pct(y);
   }
   S.groups.head.style.transformOrigin = '50% 45%'; // kepala miring dari area leher
+  S.groups.body.style.transformOrigin = pct(S.FEET_X) + ' ' + pct(S.FEET_Y); // badan miring dari kaki
 
   S.bubble = await loadImg(S.BASE + S.rig.effects.gelembung);
   S.bubble.classList.add('bubble');

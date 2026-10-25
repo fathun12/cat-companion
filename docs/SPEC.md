@@ -300,7 +300,7 @@ File yang aktif dipakai:
 - `main.js` (root): jendela transparan 200x200 di pojok kanan bawah, click-through, global shortcut keluar, pembaca input global (`uIOhook`) yang mengirim event IPC `activity` dengan nilai `key`, `mouse`, `scroll`, atau `click`. Tidak ada isi ketikan yang dibaca.
 - `src/renderer/pet/index.html`: panggung (`#stage`), CSS layer, animasi CSS gelembung.
 - `src/renderer/pet/` dipecah jadi modul CommonJS (tanpa build). Semua variabel bersama ada di objek `S` (`state.js`), modul lain memakai `const S = require('./state')`:
-  - `state.js`: konstanta pengaturan (`SLEEP_AFTER_MS`, `PLAY_SPEED`, `PLAY_RADIUS`, `LOVE_START_UP`, `SLEEP_HEAD_DROP`, `FOLLOW_HEAD`, `FOLLOW_BODY`, `WIN`) dan semua variabel status.
+  - `state.js`: konstanta pengaturan (`SLEEP_AFTER_MS`, `PLAY_SPEED`, `PLAY_RADIUS`, `LOVE_START_UP`, `SLEEP_HEAD_DROP`, `FOLLOW_HEAD`, `FOLLOW_BODY`, `FEET_X`, `FEET_Y`, `WIN`) dan semua variabel status. `FEET_X`/`FEET_Y` = titik telapak kaki di gambar: badan miring dan menunduk dari titik ini supaya kaki tampak menapak di lantai dan tidak melayang (aturan dari pemilik: kaki harus diam saat bermain, mengikuti kursor, melonjak; hanya saat di-drag boleh terangkat). Jangan menggeser badan secara horizontal; pakai rotasi dari kaki.
   - `actions.js`: `setSleep`, `spawnLove`, `updateHud`, `rand`.
   - `rig.js`: `buildRig` (muat gambar, susun layer, pivot, gelembung), `initLook` (terapkan warna/pola tersimpan dan dengarkan perubahan dari panel).
   - `input.js`: `initInput` (semua listener mouse/drag/klik kanan dan semua pesan IPC dari `main.js`, termasuk deteksi "bermain").

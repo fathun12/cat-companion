@@ -6,6 +6,7 @@ let prevT = 0;
 let sleepAmt = 0; // 0 = bangun, 1 = tidur melingkar
 let fx = 0, fvx = 0, fy = 0, fvy = 0, bx = 0, bvx = 0; // pegas kepala/badan
 let tilt = 0, tiltV = 0;
+let plant = 1; // 1 = kaki menapak, 0 = diangkat (saat di-drag)
 let nextBlink = 2000, blinkEnd = 0;
 let nextEar = 4000, earEnd = 0, earAngle = -4;
 let nextLook = 3000, lookX = 0;
@@ -35,7 +36,7 @@ function frame(t) {
   if (S.playing && (t > S.playUntil || S.sleeping || S.dragging)) S.playing = false;
   S.playAmt += ((S.playing ? 1 : 0) - S.playAmt) * Math.min(1, dt / 120);
   const crouchPx = Math.round((S.playAmt * stage.offsetHeight * 0.06) / SCALE) * SCALE;
-  const wig = Math.round(Math.sin(t / 45) * 2 * S.playAmt) * SCALE;
+  const wigDeg = Math.sin(t / 45) * 3 * S.playAmt; // geol-geol: badan miring dari kaki
 
   // ----- Elus: kursor digerakkan di atas kucing cukup lama -> mendengkur -----
   if (S.hovering && !S.dragging && t - S.lastHoverMove < 250) S.petTime += dt;
@@ -64,9 +65,12 @@ function frame(t) {
   [fy, fvy] = spring(fy, fvy, dirY * S.FOLLOW_HEAD * 0.6 * SCALE, 140, 9, fsec);
   [bx, bvx] = spring(bx, bvx, dirX * S.FOLLOW_BODY * SCALE, 90, 8, fsec);
   const headTilt = (fx / SCALE) * 1.5;
+  // Badan miring dari titik kaki (kaki tidak bergeser); kepala ikut terbawa
+  const bodyDeg = (bx / SCALE) * 2 + wigDeg;
+  const carry = (S.FEET_Y - 0.4) * stage.offsetHeight * Math.sin((bodyDeg * Math.PI) / 180);
   groups.head.style.transform =
-    `translate(${Math.round(fx + shake + wig * 0.5)}px, ${Math.round(fy + drop + crouchPx + breath * SCALE)}px) rotate(${headTilt}deg)`;
-  groups.body.style.transform = `translate(${Math.round(bx) + wig}px, 0px)`;
+    `translate(${Math.round(fx + shake + carry)}px, ${Math.round(fy + drop + crouchPx + breath * SCALE)}px) rotate(${headTilt}deg)`;
+  groups.body.style.transform = `rotate(${bodyDeg}deg)`;
 
   // ----- Ekor goyang, bertahap per 5 derajat supaya terasa pixel art -----
   const tailPeriod = 2.6 - 2.25 * S.playAmt; // makin semangat makin cepat
@@ -128,7 +132,12 @@ function frame(t) {
   const tiltTarget = held ? Math.max(-15, Math.min(15, S.dragVx * 0.5)) : 0;
   tiltV += (tiltTarget - tilt) * 140 * sec - tiltV * 8 * sec;
   tilt += tiltV * sec;
-  stage.style.transform = `rotate(${tilt}deg) scale(${1 - S.mochi * 0.6}, ${1 + S.mochi})`;
+  // Kaki tetap menapak: saat tidak diangkat, geser panggung supaya kaki tidak ikut naik/turun
+  plant += ((held ? 0 : 1) - plant) * Math.min(1, dt / 150);
+  const sy = 1 + S.mochi;
+  const ground = (S.FEET_Y - 0.25) * stage.offsetHeight * (1 - sy) * plant;
+  stage.style.transform =
+    `translateY(${ground}px) rotate(${tilt}deg) scale(${1 - S.mochi * 0.6}, ${sy})`;
 
   requestAnimationFrame(frame);
 }
