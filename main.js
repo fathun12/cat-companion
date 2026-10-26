@@ -4,6 +4,7 @@ const fs = require('fs');
 const { uIOhook } = require('uiohook-napi');
 const koffi = require('koffi');
 const timers = require('./src/main/services/timers');
+const watchers = require('./src/main/services/watchers');
 
 let win;
 let tray; // harus disimpan di variabel supaya ikon tidak hilang
@@ -204,6 +205,9 @@ app.whenReady().then(() => {
 
   // Pomodoro, pengingat, dan menu klik kanan
   timers.init(win);
+
+  // Pengamat: ComfyUI selesai, unduhan selesai, salin file selesai
+  watchers.init(win);
 
   // Tampilan kucing (warna dan pola) disimpan di look.json
   const lookFile = path.join(app.getPath('userData'), 'look.json');

@@ -33,6 +33,13 @@ const SRC = {
   s_mata: 'cat/scroll/mata.png',
   s_pupil: 'cat/scroll/pupil.png',
 };
+// Pose perayaan: tangan terangkat (assets/cat/celebrate/). Kalau filenya belum ada, dilewati
+// dan pose perayaan memakai tangan scroll sementara.
+for (const k of ['tangan_kiri', 'tangan_kanan']) {
+  if (fs.existsSync(path.join(ASSETS, 'cat', 'celebrate', k + '.png'))) {
+    SRC['c_' + k] = 'cat/celebrate/' + k + '.png';
+  }
+}
 const RECOLOR = Object.keys(SRC);
 const EYE = new Set(['mata', 'pupil', 't_mata', 't_pupil', 's_mata', 's_pupil']);
 
@@ -43,6 +50,7 @@ const PART_OF = {
   kuping: 'ears', t_kuping: 'ears', s_kuping: 'ears',
   ekor: 'tail', t_ekor: 'tail', s_ekor: 'tail',
   tangan: 'arm', s_tangan_kiri: 'arm', s_tangan_kanan: 'arm',
+  c_tangan_kiri: 'arm', c_tangan_kanan: 'arm',
   s_kaki_kiri: 'foot', s_kaki_kanan: 'foot',
 };
 // Ukuran kisi = ukuran kotak pembatas layer acuan ini
@@ -55,6 +63,7 @@ const PID = {
   s_badan: 'badan', s_kepala: 'kepala', s_kuping: 'kuping', s_ekor: 'ekor',
   // tangan dan kaki memakai pola "tangan" (misalnya kaus kaki putih di tuxedo)
   s_tangan_kiri: 'tangan', s_tangan_kanan: 'tangan', s_kaki_kiri: 'tangan', s_kaki_kanan: 'tangan',
+  c_tangan_kiri: 'tangan', c_tangan_kanan: 'tangan',
 };
 // click1/click2 memuat papan ketik: warna abu-abunya dibiarkan apa adanya
 const KEEP_MID = new Set(['click1', 'click2']);

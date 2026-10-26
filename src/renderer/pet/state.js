@@ -38,7 +38,14 @@ const S = {
 
   // ----- Garis tepi luar otomatis (warnanya mengikuti "Garis tepi" di panel kustomisasi) -----
   OUTLINE_PX: 1, // tebal garis (piksel gambar); 0 = mati
-  OUTLINE: { idle: true, typing: true, scroll: true }, // pose mana yang diberi garis tepi
+  OUTLINE: { idle: true, typing: true, scroll: true, celebrate: true }, // pose mana yang diberi garis tepi
+
+  // ----- Pose perayaan (ComfyUI, unduhan, atau salin file selesai) -----
+  CELEBRATE_MS: 2400, // lama total pose perayaan
+  CELEBRATE_HOPS: 3, // jumlah lompatan
+  CELEBRATE_HOP_PX: 4, // tinggi lompatan (piksel gambar)
+  CELEBRATE_SHIFT_Y: 0, // geser pose perayaan (piksel gambar, negatif = naik)
+  cel: null, // layer pose perayaan (diisi buildCelebrate)
   scr: null, // layer pose scroll (diisi buildScroll)
   lastScroll: -10000,
   scrollTick: 0,

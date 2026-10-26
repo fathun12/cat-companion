@@ -4,6 +4,7 @@ const { ipcRenderer } = require('electron');
 const S = require('./state');
 const Look = require('./look.js');
 const Scroll = require('./scroll');
+const Celebrate = require('./celebrate');
 
 const pct = (v) => v * 100 + '%';
 
@@ -133,6 +134,7 @@ async function buildRig() {
 
   buildTyping();
   Scroll.buildScroll();
+  Celebrate.buildCelebrate();
 }
 
 // Garis tepi luar otomatis, warnanya mengikuti "Garis tepi" di panel kustomisasi
@@ -147,6 +149,7 @@ function setOutline(look) {
   S.stage.style.filter = S.OUTLINE.idle ? f : '';
   S.typ.box.style.filter = S.OUTLINE.typing && !S.OUTLINE.idle ? f : '';
   S.scr.box.style.filter = S.OUTLINE.scroll && !S.OUTLINE.idle ? f : '';
+  S.cel.box.style.filter = S.OUTLINE.celebrate && !S.OUTLINE.idle ? f : '';
 }
 
 async function applyLook(look) {
@@ -170,6 +173,7 @@ async function applyLook(look) {
   T.pupil.src = urls.t_pupil;
 
   Scroll.applyLook(urls, look); // pose scroll ikut warna dan pola yang sama
+  Celebrate.applyLook(urls); // pose perayaan juga
   setOutline(look);
 }
 

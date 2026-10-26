@@ -2,6 +2,7 @@ const S = require('./state');
 const { rand, spring, setSleep, spawnLove } = require('./actions');
 const Scroll = require('./scroll');
 const Typing = require('./typing');
+const Celebrate = require('./celebrate');
 
 // Variabel yang hanya dipakai di loop animasi
 let prevT = 0;
@@ -115,13 +116,23 @@ function frame(t) {
   // ----- Tangan: sekarang hanya bergerak saat scroll -----
   parts.tangan.style.transform = `translate(0px, ${t < S.keyPulseEnd ? SCALE : 0}px)`;
 
+  // ----- Pose perayaan (celebrate.js) menimpa pose lain selama berlangsung -----
+  const celebrating = Celebrate.isActive(t) && !S.dragging;
   // ----- Pose mengetik (logika di typing.js) menggantikan kucing biasa -----
-  const showTyping = Typing.update(t, dt, breath, blinkEnd);
+  let showTyping = Typing.update(t, dt, breath, blinkEnd);
+  if (celebrating) {
+    showTyping = false;
+    S.typ.box.style.display = 'none';
+    S.angryImgs.forEach((img) => (img.style.display = 'none'));
+  }
   // Pose scroll: tampil kalau baru scroll dan tidak sedang mengetik
   const showScroll =
-    !showTyping && !S.sleeping && !S.dragging && t - S.lastScroll < S.SCROLL_HOLD_MS;
-  for (const id in groups) groups[id].style.display = showTyping || showScroll ? 'none' : '';
+    !celebrating && !showTyping && !S.sleeping && !S.dragging && t - S.lastScroll < S.SCROLL_HOLD_MS;
+  for (const id in groups) {
+    groups[id].style.display = showTyping || showScroll || celebrating ? 'none' : '';
+  }
   Scroll.update(t, dt, showScroll, breath);
+  Celebrate.update(t, dt, celebrating, breath);
 
   // ----- Tidur kalau lama tidak ada aktivitas -----
   if (!S.sleeping && t - S.lastActivity > S.SLEEP_AFTER_MS) setSleep(true);
