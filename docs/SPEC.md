@@ -263,3 +263,5 @@ Hal yang belum diverifikasi AI penulis: isi lengkap `look.js` (kecuali 25 baris 
 - pp.disableHardwareAcceleration() di main.js: proses GPU turun dari 83 MB ke 15 MB.
 - Mode mengintip kini membaca SHQueryUserNotificationState langsung lewat modul koffi (timer 1,5 detik di main.js). Proses PowerShell tersembunyi DIBUANG (hemat 65 MB). JANGAN dikembalikan ke PowerShell. Privasi tetap sama: hanya satu angka status.
 - uild/icon.ico harus ICO asli (16/32/48/256). Sumber PNG ada di uild/icon-src.png.
+
+- [26 Okt 2026] Logika pose mengetik (panas/frustrasi/lelah, kaki, kepala, mata, ekor, merah, gelembung) dipindah dari animate.js ke src/renderer/pet/typing.js (update, isHot). buildTyping tetap di rig.js. Fungsi spring dipindah ke actions.js dan dipakai bersama animate.js, scroll.js, dan typing.js.

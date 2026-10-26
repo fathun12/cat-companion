@@ -1,6 +1,7 @@
 const S = require('./state');
-const { rand, setSleep, spawnLove } = require('./actions');
+const { rand, spring, setSleep, spawnLove } = require('./actions');
 const Scroll = require('./scroll');
+const Typing = require('./typing');
 
 // Variabel yang hanya dipakai di loop animasi
 let prevT = 0;
@@ -11,18 +12,6 @@ let plant = 1; // 1 = kaki menapak, 0 = diangkat (saat di-drag)
 let nextBlink = 2000, blinkEnd = 0;
 let nextEar = 4000, earEnd = 0, earAngle = -4;
 let nextLook = 3000, lookX = 0;
-// Mengetik
-let heat = 0; // 0 = tenang, 1 = memerah
-let hot = false, hotUntil = 0, tiredUntil = 0;
-let kick = 0, kickV = 0, seenKey = 0, wagPhase = 0;
-let nextDizzy = 0, dizzyStart = -10000; // pupil pusing saat memerah
-const DIZZY_MS = 880; // 8 langkah x 110 ms = 2 putaran
-const DIZZY_RING = [[0, -1], [1, 0], [0, 1], [-1, 0]]; // atas, kanan, bawah, kiri
-
-const spring = (pos, vel, target, k, c, sec) => {
-  vel += ((target - pos) * k - vel * c) * sec;
-  return [pos + vel * sec, vel];
-};
 
 function frame(t) {
   const { parts, groups, stage, SCALE } = S;
@@ -126,107 +115,13 @@ function frame(t) {
   // ----- Tangan: sekarang hanya bergerak saat scroll -----
   parts.tangan.style.transform = `translate(0px, ${t < S.keyPulseEnd ? SCALE : 0}px)`;
 
-  // ----- Mengetik cepat: frustrasi -> memerah -> lelah -----
-  const keys = S.keyTimes;
-  while (keys.length && t - keys[0] > 1000) keys.shift();
-  const spd = Math.min(1, keys.length / 8); // 0 = pelan, 1 = ngebut
-  const tired = !S.sleeping && t < tiredUntil;
-  if (S.sleeping) {
-    heat = 0;
-    hot = false;
-    tiredUntil = 0;
-  } else if (tired) {
-    heat = 0;
-  } else if (hot) {
-    if (t > hotUntil) {
-      hot = false;
-      heat = 0;
-      tiredUntil = t + S.TIRED_MS;
-      keys.length = 0;
-    }
-  } else {
-    heat += keys.length >= S.HEAT_KPS ? dt / S.HEAT_RISE_MS : -dt / S.HEAT_FALL_MS;
-    heat = Math.max(0, Math.min(1, heat));
-    if (heat >= 1) {
-      hot = true;
-      hotUntil = t + S.HOT_MS;
-    }
-  }
-  const frustrated = !hot && !tired && heat > S.FRUSTRATE_AT;
-
-  // ----- Pose mengetik (layer terpisah) menggantikan kucing biasa -----
-  const showTyping =
-    !S.sleeping && !S.dragging && (t - S.lastKey < S.TYPE_HOLD_MS || hot || tired || heat > 0);
+  // ----- Pose mengetik (logika di typing.js) menggantikan kucing biasa -----
+  const showTyping = Typing.update(t, dt, breath, blinkEnd);
   // Pose scroll: tampil kalau baru scroll dan tidak sedang mengetik
   const showScroll =
     !showTyping && !S.sleeping && !S.dragging && t - S.lastScroll < S.SCROLL_HOLD_MS;
   for (const id in groups) groups[id].style.display = showTyping || showScroll ? 'none' : '';
   Scroll.update(t, dt, showScroll, breath);
-  const T = S.typ;
-  T.box.style.display = showTyping ? '' : 'none';
-  const active = tired ? 0 : S.typeFrame; // kaki bergantian: click1 <-> click2
-  T.clicks.forEach((c, i) => {
-    const on = i === active ? '' : 'none';
-    c.img.style.display = on;
-    c.imgH.style.display = on;
-  });
-
-  if (showTyping) {
-    // Setiap ketikan: kepala menekan sedikit ke bawah, lalu memantul kembali
-    if (S.lastKey !== seenKey) {
-      seenKey = S.lastKey;
-      kickV += 26;
-    }
-    [kick, kickV] = spring(kick, kickV, 0, 260, 14, fsec);
-    kick = Math.min(kick, 2);
-    const dip = Math.min(2, breath + Math.max(0, Math.round(kick))) * SCALE;
-    T.headBox.style.transform = `translateY(${dip}px)`;
-
-    // Mata: melihat ke papan ketik; tertutup saat lelah atau kedip
-    const shut = tired || t < blinkEnd;
-    T.mata.style.display = shut ? 'none' : '';
-    T.pupil.style.display = shut ? 'none' : '';
-    T.closed.style.display = shut ? '' : 'none';
-    // Pupil: menunduk ke papan ketik; saat memerah sesekali berputar pusing
-    let pdx = 0, pdy = 1;
-    if (hot) {
-      if (t >= nextDizzy) {
-        dizzyStart = t;
-        nextDizzy = t + rand(1800, 3000);
-      }
-      const dz = t - dizzyStart;
-      if (dz < DIZZY_MS) [pdx, pdy] = DIZZY_RING[Math.floor(dz / 110) % 4];
-    } else {
-      nextDizzy = t + 500; // putaran pertama 0,5 detik setelah mulai memerah
-      dizzyStart = -10000;
-    }
-    T.pupil.style.transform = `translate(${pdx * SCALE}px, ${pdy * SCALE}px)`;
-
-    // Ekor berkibas: makin cepat mengetik, makin cepat kibasannya.
-    // Saat gelembung muncul atau memerah = sama persis dengan mode excited (0,35 dtk, 25 derajat)
-    const excited = frustrated || hot;
-    const wagPeriod = tired ? 3 : excited ? 0.35 : 1.4 - 1.0 * spd;
-    const wagAmp = tired ? 5 : excited ? 25 : 10 + 12 * spd;
-    wagPhase += ((dt / 1000) * (2 * Math.PI)) / wagPeriod;
-    const wag = Math.round((Math.sin(wagPhase) * wagAmp) / 5) * 5;
-    T.tailBox.style.transform = `rotate(${wag}deg)`;
-
-    // Merah: naik pelan saat panas, penuh saat memerah, memudar saat lelah
-    const red = hot
-      ? 1
-      : tired
-        ? Math.max(0, (tiredUntil - t) / S.TIRED_MS)
-        : Math.max(0, (heat - 0.3) / 0.7);
-    T.tailH.style.opacity = red;
-    T.kupingH.style.opacity = red;
-    T.kepalaH.style.opacity = red;
-    T.clicks.forEach((c) => (c.imgH.style.opacity = red));
-  }
-
-  // Gelembung: frustrasi dan memerah cepat, lelah pelan
-  const showBubbles = showTyping && (frustrated || hot || tired);
-  const bp = Math.floor(t / (tired ? 600 : 300)) % 2;
-  S.angryImgs.forEach((img, i) => (img.style.display = showBubbles && i === bp ? '' : 'none'));
 
   // ----- Tidur kalau lama tidak ada aktivitas -----
   if (!S.sleeping && t - S.lastActivity > S.SLEEP_AFTER_MS) setSleep(true);
@@ -246,7 +141,7 @@ function frame(t) {
   plant += ((held ? 0 : 1) - plant) * Math.min(1, dt / 150);
   const sy = 1 + S.mochi;
   const ground = (S.FEET_Y - 0.25) * stage.offsetHeight * (1 - sy) * plant;
-  const hotShake = hot && showTyping ? (Math.floor(t / 60) % 2) * SCALE : 0; // bergetar saat memerah
+  const hotShake = Typing.isHot() && showTyping ? (Math.floor(t / 60) % 2) * SCALE : 0; // bergetar saat memerah
   stage.style.transform =
     `translateX(${hotShake}px) translateY(${ground}px) rotate(${tilt}deg) scale(${1 - S.mochi * 0.6}, ${sy})`;
 

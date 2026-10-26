@@ -2,6 +2,12 @@ const S = require('./state');
 
 const rand = (a, b) => a + Math.random() * (b - a);
 
+// Pegas: menarik pos ke target dengan efek kenyal. Mengembalikan [pos baru, kecepatan baru]
+const spring = (pos, vel, target, k, c, sec) => {
+  vel += ((target - pos) * k - vel * c) * sec;
+  return [pos + vel * sec, vel];
+};
+
 function setSleep(value) {
   S.sleeping = value;
   S.bubble.style.display = value ? '' : 'none';
@@ -31,4 +37,4 @@ function updateHud() {
   S.hud.style.display = text ? 'block' : 'none';
 }
 
-module.exports = { rand, setSleep, spawnLove, updateHud };
+module.exports = { rand, spring, setSleep, spawnLove, updateHud };

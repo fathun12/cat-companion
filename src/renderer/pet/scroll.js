@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const S = require('./state');
+const { rand, spring } = require('./actions');
 
 // Pose scroll: kucing menarik gulungan tisu. Aset ada di assets/cat/scroll/.
 // Urutan tumpuk dari bawah: tisu, ekor, badan, tangan, kaki, lalu kepala (kuping, kepala, kumis, mata, pupil).
@@ -24,11 +25,6 @@ const mkDiv = (parent) => {
   return d;
 };
 
-const spring = (pos, vel, target, k, c, sec) => {
-  vel += ((target - pos) * k - vel * c) * sec;
-  return [pos + vel * sec, vel];
-};
-
 let A = null;
 const kick = [0, 0]; // 0 = tangan kiri, 1 = tangan kanan
 const kickV = [0, 0];
@@ -36,7 +32,6 @@ let seenTick = 0;
 let wagPhase = 0;
 let nextBlink = 1500, blinkEnd = 0;
 let liveLines = 0;
-const rand = (a, b) => a + Math.random() * (b - a);
 
 // Cari kotak pembatas gulungan di tisu.png, untuk menentukan asal kertas tisu
 function measureRoll() {
