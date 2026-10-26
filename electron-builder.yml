@@ -11,6 +11,9 @@ files:
   - "!**/*.ts"
 asarUnpack:
   - node_modules/uiohook-napi/**
+electronLanguages:
+  - en-US
+  - id
 win:
   target: nsis
   icon: build/icon.ico
