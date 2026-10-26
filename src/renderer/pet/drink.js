@@ -1,9 +1,10 @@
 const { ipcRenderer } = require('electron');
 const S = require('./state');
 
-// Pose minum: mangkuk muncul di bawah dagu, kepala turun-naik, lidah menjulur saat kepala turun.
-// Dipicu IPC 'say' jenis 'drink' (pengingat minum dari timers.js).
-// Gambar: assets/cat/drink/bowl.png dan lidah.png (48x48, sejajar pose idle, tidak diwarnai ulang).
+// Pose minum: kepala turun ke mangkuk (DRINK_DROP_PX), lidah di mulut (anak grup kepala, ikut gerak kepala),
+// kepala naik-turun kecil sambil lidah keluar-masuk. Dipicu IPC 'say' jenis 'drink' dari timers.js.
+// Gambar: assets/cat/drink/bowl.png dan lidah.png (48x48, tidak diwarnai ulang).
+// lidah.png digambar pada posisi SAAT kepala sudah turun, jadi di grup kepala digeser naik sebesar DRINK_DROP_PX.
 
 let bowl = null;
 let tongue = null;
@@ -21,22 +22,39 @@ const mkImg = (file) => {
 function buildDrink() {
   bowl = mkImg('bowl.png');
   tongue = mkImg('lidah.png');
-  S.stage.appendChild(bowl); // paling atas, menutupi dagu
-  S.groups.head.appendChild(tongue); // ikut gerak kepala
+  tongue.style.transform = `translateY(${-S.DRINK_DROP_PX * S.SCALE}px)`;
+  S.stage.appendChild(bowl); // paling atas, di bawah dagu
+  S.groups.head.appendChild(tongue); // di kepala, ikut turun-naik
 }
 
-const isActive = (t) => startAt >= 0 && t >= startAt && t - startAt < S.DRINK_MS;
-const isDown = (t) => (t - startAt) % S.DRINK_BOB_MS >= S.DRINK_BOB_MS / 2;
+const isActive = (t) => startAt >= 0 && t >= startAt && t < startAt + S.DRINK_MS;
+
+// 0 = kepala duduk biasa, 1 = kepala sudah di mangkuk
+function amount(t) {
+  const e = t - startAt;
+  if (e < 0 || e >= S.DRINK_MS) return 0;
+  if (e < S.DRINK_IN_MS) return e / S.DRINK_IN_MS;
+  if (e > S.DRINK_MS - S.DRINK_OUT_MS) return (S.DRINK_MS - e) / S.DRINK_OUT_MS;
+  return 1;
+}
+
+// true = kepala di mangkuk + lidah keluar; false = kepala naik sedikit, lidah masuk
+const licking = (t) =>
+  amount(t) >= 1 && (t - startAt - S.DRINK_IN_MS) % S.DRINK_BOB_MS < S.DRINK_BOB_MS / 2;
 
 // Seberapa turun kepala (piksel layar), dipakai animate.js
 function dip(t) {
-  return isActive(t) && !S.dragging && !S.sleeping && isDown(t) ? S.DRINK_DIP_PX * S.SCALE : 0;
+  if (!isActive(t) || S.dragging || S.sleeping) return 0;
+  const a = amount(t);
+  const drop = Math.round(a * S.DRINK_DROP_PX);
+  const up = a >= 1 && !licking(t) ? S.DRINK_BOB_UP_PX : 0;
+  return (drop - up) * S.SCALE;
 }
 
 function update(t, active) {
   if (!bowl) return;
   bowl.style.display = active ? '' : 'none';
-  tongue.style.display = active && isDown(t) ? '' : 'none';
+  tongue.style.display = active && licking(t) ? '' : 'none';
 }
 
 ipcRenderer.on('say', (event, text, kind) => {

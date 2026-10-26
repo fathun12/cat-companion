@@ -53,8 +53,9 @@ function frame(t) {
 
   // ----- Kepala dan badan condong ke kursor dengan efek kenyal -----
   const fsec = Math.min(dt, 50) / 1000;
+  const drinking = Drink.isActive(t) && !S.dragging && !S.sleeping && !Celebrate.isActive(t);
   let dirX = 0, dirY = 0;
-  if (!S.sleeping && !S.dragging && t - S.lastCursorMove < 5000) {
+  if (!S.sleeping && !S.dragging && !drinking && t - S.lastCursorMove < 5000) {
     const fcx = stage.offsetLeft + stage.offsetWidth / 2;
     const fcy = stage.offsetTop + stage.offsetHeight / 2;
     dirX = Math.max(-1, Math.min(1, (S.cursorX - fcx) / 200));
@@ -119,8 +120,7 @@ function frame(t) {
 
   // ----- Pose perayaan (celebrate.js) menimpa pose lain selama berlangsung -----
   const celebrating = Celebrate.isActive(t) && !S.dragging;
-  // ----- Pose minum (drink.js): kucing idle + mangkuk, menimpa pose mengetik dan scroll -----
-  const drinking = Drink.isActive(t) && !S.dragging && !S.sleeping && !celebrating;
+  // ----- Pose minum (drink.js): `drinking` dihitung di atas; menimpa pose mengetik dan scroll -----
   // ----- Pose mengetik (logika di typing.js) menggantikan kucing biasa -----
   let showTyping = Typing.update(t, dt, breath, blinkEnd);
   if (celebrating || drinking) {
