@@ -2,13 +2,13 @@ const { app, BrowserWindow, ipcMain, screen, globalShortcut, Tray, Menu, nativeI
 const path = require('path');
 const fs = require('fs');
 const { uIOhook } = require('uiohook-napi');
-const { spawn } = require('child_process');
+const koffi = require('koffi');
 const timers = require('./src/main/services/timers');
 
 let win;
 let tray; // harus disimpan di variabel supaya ikon tidak hilang
 let peeking = false; // true = kucing sedang mengintip di tepi layar
-let peekProc = null; // proses PowerShell pembaca status layar penuh
+let peekTimer = null; // timer pembaca status layar penuh
 
 app.disableHardwareAcceleration(); // hemat RAM: kucing kecil, tidak butuh GPU
 const gotLock = app.requestSingleInstanceLock();
@@ -174,7 +174,7 @@ app.whenReady().then(() => {
     }
   };
 
-  // Satu proses PowerShell tersembunyi menulis satu angka tiap 1,5 detik:
+  // Membaca satu angka tiap 1,5 detik langsung dari Windows (tanpa proses lain):
   // 2 = aplikasi layar penuh, 3 = game Direct3D layar penuh, 4 = mode presentasi.
   // PRIVASI: hanya angka status, tidak ada judul jendela atau isi layar.
   let streak = 0;
@@ -188,29 +188,16 @@ app.whenReady().then(() => {
     }
     if (streak >= 2) setPeek(full && timers.peekEnabled());
   };
-  const psScript = [
-    'Add-Type -TypeDefinition \'using System.Runtime.InteropServices; public static class Q { [DllImport("shell32.dll")] public static extern int SHQueryUserNotificationState(out int s); }\'',
-    'while ($true) { $s = 0; [void][Q]::SHQueryUserNotificationState([ref]$s); [Console]::WriteLine($s); Start-Sleep -Milliseconds 1500 }',
-  ].join('\n');
   try {
-    peekProc = spawn(
-      'powershell.exe',
-      ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-EncodedCommand',
-        Buffer.from(psScript, 'utf16le').toString('base64')],
-      { windowsHide: true }
-    );
-    let buf = '';
-    peekProc.stdout.on('data', (chunk) => {
-      buf += chunk;
-      const lines = buf.split(/\r?\n/);
-      buf = lines.pop();
-      lines.forEach((l) => {
-        const n = parseInt(l, 10);
-        if (!isNaN(n)) onState(n);
-      });
-    });
-    peekProc.stderr.on('data', () => {});
-    peekProc.on('error', () => {});
+    const shell32 = koffi.load('shell32.dll');
+    const query = shell32.func('int __stdcall SHQueryUserNotificationState(_Out_ int *state)');
+    peekTimer = setInterval(() => {
+      try {
+        const out = [0];
+        query(out);
+        onState(out[0]);
+      } catch (e) {}
+    }, 1500);
   } catch (e) {}
 
   // (Bermain dengan kursor ada di pet.js; jendela tidak lagi berpindah sendiri)
@@ -299,6 +286,6 @@ app.whenReady().then(() => {
 
 app.on('will-quit', () => {
   uIOhook.stop();
-  if (peekProc) peekProc.kill();
+  if (peekTimer) clearInterval(peekTimer);
 });
 app.on('window-all-closed', () => app.quit());
