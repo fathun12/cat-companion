@@ -36,6 +36,7 @@ function send() {
 
 Object.keys(Look.PRESETS).forEach((name) => {
   const b = document.createElement('button');
+  b.className = 'chip';
   b.textContent = name[0].toUpperCase() + name.slice(1);
   b.onclick = () => {
     look = { ...Look.PRESETS[name] };
@@ -133,3 +134,11 @@ $('uName').addEventListener('change', saveMsgs);
 // ===== Catatan sematan =====
 ipcRenderer.invoke('note-get').then((v) => ($('note').value = v || ''));
 $('note').addEventListener('change', () => ipcRenderer.send('note-set', $('note').value));
+
+// ===== Tab =====
+document.querySelectorAll('.tab').forEach((t) => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach((x) => x.classList.toggle('on', x === t));
+    document.querySelectorAll('.pane').forEach((p) => p.classList.toggle('on', p.id === 'pane-' + t.dataset.tab));
+  });
+});

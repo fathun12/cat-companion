@@ -1,4 +1,4 @@
-# SPEC.md: Cat Companion (desktop pet kucing piksel)
+﻿# SPEC.md: Cat Companion (desktop pet kucing piksel)
 
 Dokumen serah-terima. AI mana pun yang melanjutkan proyek ini WAJIB membaca seluruh file ini dulu, terutama **bagian 2 (cara kerja dengan pemilik)**.
 
@@ -170,7 +170,9 @@ Menu klik kanan buatan sendiri, gaya brutalis + pixel art: palet krem/pink/mint/
 - `index.html`: `#stage`, `#hud`, CSS layer.
 
 ### `src/renderer/panel/`
-Jendela kustomisasi: pratinjau, 5 preset (hitam, oren, abu, tuxedo, calico), 4 warna (badan, garis tepi, pola, pola 2), 4 pola (polos, belang, tuxedo, calico). Perubahan lewat IPC `look-set`. Panel juga diduga punya kotak input pesan kustom dan catatan (IPC `msgs-*`, `note-*` ada di `timers.js`) tapi **belum diverifikasi** oleh AI penulis spec ini.
+Jendela kustomisasi bergaya brutalis + pixel art (sama dengan menu klik kanan: font Pixelify Sans, palet krem/pink/mint/lavender/butter, border tebal, bayangan keras), tiga tab: **Tampilan** (pratinjau, 5 preset, 4 warna, 4 pola prosedural), **Catatan** (catatan sematan, IPC `note-get`/`note-set`), **Pesan** (nama panggilan dan pesan harian, IPC `msgs-get`/`msgs-set`). Perubahan tampilan lewat IPC `look-set`.
+
+RENCANA berikutnya (Tahap B): tab **Pola** berisi editor pola piksel ala "Comnyang Pattern Editor": satu kisi piksel per bagian (kuping kiri, kuping kanan, kepala, badan, tangan, kaki, ekor), kuas dan penghapus, ukuran kuas 1/2/3/5, palet warna bercak, warna badan dasar, tab **Mata** (warna latar mata, warna mata, opsi mata beda warna), preset yang bisa diedit dan disimpan (Buang / Preset baru). Pola dari kisi dipetakan ke semua pose lewat posisi relatif di kotak pembatas tiap layer (menggantikan fungsi `PATTERNS` di `look.js`).
 
 ---
 
