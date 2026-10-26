@@ -10,6 +10,7 @@ let tray; // harus disimpan di variabel supaya ikon tidak hilang
 let peeking = false; // true = kucing sedang mengintip di tepi layar
 let peekProc = null; // proses PowerShell pembaca status layar penuh
 
+app.disableHardwareAcceleration(); // hemat RAM: kucing kecil, tidak butuh GPU
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) app.quit(); // sudah ada kucing yang jalan
 
