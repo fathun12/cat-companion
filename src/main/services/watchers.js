@@ -4,7 +4,7 @@ const { app } = require('electron');
 // ===== Pengaturan (boleh diubah) =====
 const COMFY_URL = 'http://127.0.0.1:8188'; // alamat ComfyUI lokal; '' = nonaktif
 const WATCH_DOWNLOAD = true; // unduhan browser selesai
-const WATCH_COPY = true; // salin/pindah file di Explorer selesai
+const WATCH_COPY = false; // salin/pindah file di Explorer selesai (nama kelas jendela belum ketemu di Win11 ini)
 const DOWNLOAD_DIR = ''; // '' = folder Unduhan bawaan Windows; isi kalau browsermu mengunduh ke folder lain
 const PARTIAL = ['.crdownload', '.part', '.opdownload']; // file sementara Chrome/Edge, Firefox, Opera
 
