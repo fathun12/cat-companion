@@ -28,6 +28,17 @@ const S = {
   HOT_MS: 6000, // lama memerah
   TIRED_MS: 6000, // lama lelah (mata tertutup + gelembung)
 
+  // ----- Pose scroll (kucing menarik gulungan tisu) -----
+  SCROLL_HOLD_MS: 1400, // pose scroll bertahan sekian ms setelah scroll terakhir
+  SCROLL_SHIFT_Y: 0, // geser pose scroll (piksel gambar, negatif = naik) supaya lantainya sejajar
+  TISSUE_STRIP: true, // false = tanpa kertas tisu yang memanjang
+  STRIP_STEP: 2, // kertas memanjang sekian piksel gambar tiap event scroll
+  STRIP_MAX: 10, // panjang maksimal kertas (piksel gambar)
+  scr: null, // layer pose scroll (diisi buildScroll)
+  lastScroll: -10000,
+  scrollTick: 0,
+  scrollFrame: 0,
+
   // ===== Elemen dan data (diisi saat start) =====
   stage: null,
   hud: null,

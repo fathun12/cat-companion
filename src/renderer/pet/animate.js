@@ -1,5 +1,6 @@
 const S = require('./state');
 const { rand, setSleep, spawnLove } = require('./actions');
+const Scroll = require('./scroll');
 
 // Variabel yang hanya dipakai di loop animasi
 let prevT = 0;
@@ -156,7 +157,11 @@ function frame(t) {
   // ----- Pose mengetik (layer terpisah) menggantikan kucing biasa -----
   const showTyping =
     !S.sleeping && !S.dragging && (t - S.lastKey < S.TYPE_HOLD_MS || hot || tired || heat > 0);
-  for (const id in groups) groups[id].style.display = showTyping ? 'none' : '';
+  // Pose scroll: tampil kalau baru scroll dan tidak sedang mengetik
+  const showScroll =
+    !showTyping && !S.sleeping && !S.dragging && t - S.lastScroll < S.SCROLL_HOLD_MS;
+  for (const id in groups) groups[id].style.display = showTyping || showScroll ? 'none' : '';
+  Scroll.update(t, dt, showScroll, breath);
   const T = S.typ;
   T.box.style.display = showTyping ? '' : 'none';
   const active = tired ? 0 : S.typeFrame; // kaki bergantian: click1 <-> click2

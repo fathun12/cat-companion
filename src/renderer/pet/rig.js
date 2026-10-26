@@ -3,6 +3,7 @@ const path = require('path');
 const { ipcRenderer } = require('electron');
 const S = require('./state');
 const Look = require('./look.js');
+const Scroll = require('./scroll');
 
 const pct = (v) => v * 100 + '%';
 
@@ -131,6 +132,7 @@ async function buildRig() {
   S.stage.appendChild(S.bubble);
 
   buildTyping();
+  Scroll.buildScroll();
 }
 
 async function applyLook(look) {
@@ -150,6 +152,8 @@ async function applyLook(look) {
   T.kepala.src = urls.t_kepala;
   T.kepalaH.src = urls.t_kepala_H;
   T.closed.src = await Look.closedEyes(look);
+
+  Scroll.applyLook(urls); // pose scroll ikut warna dan pola yang sama
 }
 
 // Terapkan tampilan tersimpan, lalu dengarkan perubahan dari panel kustomisasi

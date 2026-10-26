@@ -16,12 +16,26 @@ const SRC = {
   t_kepala: 'cat/typing/kepala.png',
   t_kuping: 'cat/typing/kuping.png',
   t_ekor: 'cat/typing/ekor.png',
+  // pose scroll (assets/cat/scroll/)
+  s_badan: 'cat/scroll/badan.png',
+  s_kepala: 'cat/scroll/kepala.png',
+  s_kuping: 'cat/scroll/kuping.png',
+  s_ekor: 'cat/scroll/ekor.png',
+  s_tangan_kiri: 'cat/scroll/tangan_kiri.png',
+  s_tangan_kanan: 'cat/scroll/tangan_kanan.png',
+  s_kaki_kiri: 'cat/scroll/kaki_kiri.png',
+  s_kaki_kanan: 'cat/scroll/kaki_kanan.png',
 };
 const RECOLOR = Object.keys(SRC);
 
 // Layer pose mengetik memakai pola yang sama dengan layer idle-nya.
 // Layer di daftar ini juga dibuatkan versi merah (hasilnya diberi akhiran _H).
-const PID = { click1: 'badan', click2: 'badan', t_kepala: 'kepala', t_kuping: 'kuping', t_ekor: 'ekor' };
+const PID = {
+  click1: 'badan', click2: 'badan', t_kepala: 'kepala', t_kuping: 'kuping', t_ekor: 'ekor',
+  s_badan: 'badan', s_kepala: 'kepala', s_kuping: 'kuping', s_ekor: 'ekor',
+  // tangan dan kaki memakai pola "tangan" (misalnya kaus kaki putih di tuxedo)
+  s_tangan_kiri: 'tangan', s_tangan_kanan: 'tangan', s_kaki_kiri: 'tangan', s_kaki_kanan: 'tangan',
+};
 // click1/click2 memuat papan ketik: warna abu-abunya dibiarkan apa adanya
 const KEEP_MID = new Set(['click1', 'click2']);
 

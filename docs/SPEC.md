@@ -362,3 +362,10 @@ Kemungkinan masalah:
 - `uiohook-napi` memakai modul native. Jika ada masalah setelah update Electron, jalankan `electron-rebuild` (jelaskan langkahnya dengan sederhana).
 - Antivirus bisa curiga pada hook input global. Patuhi aturan privasi di bagian 3.
 | 8 | Polish: tray, auto-start Windows, multi-monitor, mode mengintip, cek CPU/RAM | **Sebagian selesai**: tray (tampil/sembunyi, kustomisasi, keluar, auto-start), ingat posisi + selamatkan ke monitor utama, mode mengintip (`SHQueryUserNotificationState` lewat PowerShell tersembunyi di `main.js`; hanya angka status, privasi aman). Belum: cek CPU/RAM |
+## 9. Pose scroll (gulungan tisu)
+
+- Aset di `assets/cat/scroll/` (48x48, disalin dari art pemilik; `pupi.png` diganti jadi `pupil.png`): `tisu`, `ekor`, `badan`, `tangan_kiri`, `tangan_kanan`, `kaki_kiri`, `kaki_kanan`, `kuping`, `kepala`, `kumis`, `mata`, `pupil`.
+- Kode: `src/renderer/pet/scroll.js` (`buildScroll`, `applyLook`, `update`). Dipanggil dari `rig.js` (build dan warna) dan `animate.js` (tampil kalau `t - S.lastScroll < SCROLL_HOLD_MS` dan tidak sedang mengetik).
+- Event `scroll` di `input.js` menaikkan `S.scrollTick` dan menukar `S.scrollFrame` (tangan kiri/kanan bergantian). Kertas tisu digambar lewat kode dari bawah gulungan (posisi dibaca dari `tisu.png`), bisa dimatikan dengan `TISSUE_STRIP: false`.
+- Layer pose scroll diwarnai lewat `look.js` (`s_*` di `SRC` dan `PID`; kaki dan tangan memakai pola `tangan`). Kumis, mata, pupil tidak diwarnai.
+- Catatan untuk AI penerus: logika pose mengetik masih ada di `animate.js`; sebaiknya dipindah ke modul sendiri seperti `scroll.js`.

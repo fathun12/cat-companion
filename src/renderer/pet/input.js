@@ -71,7 +71,12 @@ function initInput() {
       S.keyTimes.push(now);
       S.typeFrame = 1 - S.typeFrame; // ganti pose click1/click2 tiap ketikan
     }
-    if (type === 'scroll') S.keyPulseEnd = now + 110;
+    if (type === 'scroll') {
+      S.keyPulseEnd = now + 110;
+      S.lastScroll = now;
+      S.scrollTick++;
+      S.scrollFrame = 1 - S.scrollFrame; // tangan kiri dan kanan bergantian
+    }
   });
 
   // Posisi kursor relatif terhadap jendela kucing + deteksi "bermain"
