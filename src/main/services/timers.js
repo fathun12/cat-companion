@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { app, Menu, ipcMain } = require('electron');
+const { app, ipcMain } = require('electron');
 const menuWindow = require('./menuWindow');
 
 const DEFAULTS = { focusMin: 25, breakMin: 5, stretchMin: 45, waterMin: 60, hunt: true, peek: true, name: '', messages: [], note: '' }; // 0 = nonaktif
@@ -149,86 +149,6 @@ function menuState() {
     hunt: settings.hunt,
     peek: settings.peek,
   };
-}
-
-function radio(label, key, values, fmt) {
-  return {
-    label,
-    submenu: values.map((v) => ({
-      label: fmt(v),
-      type: 'radio',
-      checked: settings[key] === v,
-      click: () => {
-        settings[key] = v;
-        save();
-        schedule();
-      },
-    })),
-  };
-}
-
-function buildMenu() {
-  const idle = pomo.phase === 'idle';
-  const minutes = (v) => `${v} menit`;
-  const every = (v) => (v === 0 ? 'Nonaktif' : `Tiap ${v} menit`);
-
-  return Menu.buildFromTemplate([
-    {
-      label: idle ? 'Mulai Pomodoro' : pomo.running ? 'Jeda Pomodoro' : 'Lanjutkan Pomodoro',
-      click: () => {
-        if (idle) {
-          begin('focus');
-          say('Fokus dimulai! Semangat!', 'hop');
-        } else if (pomo.running) {
-          pomo.left = Math.max(0, pomo.endAt - Date.now());
-          pomo.running = false;
-        } else {
-          pomo.endAt = Date.now() + pomo.left;
-          pomo.running = true;
-        }
-        lastStatus = null;
-        sendStatus();
-      },
-    },
-    {
-      label: 'Reset Pomodoro',
-      enabled: !idle,
-      click: () => {
-        pomo = { phase: 'idle', running: false, endAt: 0, left: 0 };
-        lastStatus = null;
-        sendStatus();
-      },
-    },
-    { type: 'separator' },
-    radio('Durasi fokus', 'focusMin', [1, 15, 25, 45, 50], minutes),
-    radio('Durasi istirahat', 'breakMin', [1, 5, 10, 15], minutes),
-    { type: 'separator' },
-    radio('Pengingat peregangan', 'stretchMin', [0, 1, 30, 45, 60], every),
-    radio('Pengingat minum', 'waterMin', [0, 1, 30, 45, 60], every),
-    { type: 'separator' },
-    {
-      label: 'Bermain dengan kursor',
-      type: 'checkbox',
-      checked: settings.hunt,
-      click: (item) => {
-        settings.hunt = item.checked;
-        save();
-        send('play-enabled', item.checked);
-      },
-    },
-    {
-      label: 'Mengintip saat layar penuh',
-      type: 'checkbox',
-      checked: settings.peek,
-      click: (item) => {
-        settings.peek = item.checked;
-        save();
-      },
-    },
-    { label: 'Kustomisasi kucing...', click: () => ipcMain.emit('open-panel') },
-    { type: 'separator' },
-    { label: 'Keluar', click: () => app.quit() },
-  ]);
 }
 
 function init(browserWindow) {

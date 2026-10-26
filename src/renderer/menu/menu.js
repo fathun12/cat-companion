@@ -33,9 +33,32 @@ const TOGGLES = [
 ];
 
 const root = document.getElementById('menu');
+const MODE = new URLSearchParams(location.search).get('mode') || 'cat'; // 'cat' = menu kucing, 'tray' = menu ikon tray
+const CH = MODE === 'tray' ? { state: 'tray-state', action: 'tray-action' } : { state: 'menu-state', action: 'menu-action' };
 let state = null;
 
+// Menu tray: tampil/sembunyikan kucing, jalankan saat Windows menyala, kustomisasi, keluar
+function renderTray() {
+  const s = state;
+  root.innerHTML = `
+    <div class="title"><span class="t">${icon('paw')}Menu Tray</span><span class="dots"><i></i><i></i><i></i></span></div>
+    <div class="sec s1">
+      <button class="btn" data-act="showhide">${icon('eye')}${s.visible ? 'Sembunyikan kucing' : 'Tampilkan kucing'}</button>
+    </div>
+    <div class="sec s3">
+      <button class="btn toggle${s.autostart ? ' on' : ''}" data-act="autostart">
+        ${icon('play')}<span>Jalankan saat Windows menyala</span><b class="sw">${s.autostart ? 'ON' : 'OFF'}</b>
+      </button>
+    </div>
+    <div class="sec s4">
+      <button class="btn lav" data-act="panel">${icon('heart')}Kustomisasi kucing</button>
+      <button class="btn pink" data-act="quit">${icon('x')}Keluar</button>
+    </div>`;
+  ipcRenderer.send('menu-size', root.offsetHeight + 10);
+}
+
 function render() {
+  if (MODE === 'tray') return renderTray();
   const s = state;
   const idle = s.phase === 'idle';
   const pomoText = idle ? 'Mulai Pomodoro' : s.running ? 'Jeda Pomodoro' : 'Lanjutkan';
@@ -83,8 +106,8 @@ root.addEventListener('click', (e) => {
   if (!el || el.disabled) return;
   const act = el.dataset.act;
   const val = el.dataset.val === undefined ? undefined : Number(el.dataset.val);
-  ipcRenderer.invoke('menu-action', act, el.dataset.key, val).then((st) => {
-    if (['pomo', 'reset', 'panel', 'quit'].includes(act)) {
+  ipcRenderer.invoke(CH.action, act, el.dataset.key, val).then((st) => {
+    if (['pomo', 'reset', 'panel', 'quit', 'showhide'].includes(act)) {
       ipcRenderer.send('menu-close');
       return;
     }
@@ -99,7 +122,7 @@ window.addEventListener('keydown', (e) => {
 window.addEventListener('contextmenu', (e) => e.preventDefault());
 
 Promise.all([
-  ipcRenderer.invoke('menu-state'),
+  ipcRenderer.invoke(CH.state),
   document.fonts.load('700 15px "Pixelify Sans"').catch(() => []),
 ]).then(([st]) => {
   state = st;

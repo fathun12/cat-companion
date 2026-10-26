@@ -1,9 +1,10 @@
-const { app, BrowserWindow, ipcMain, screen, globalShortcut, Tray, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, globalShortcut, Tray, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { uIOhook } = require('uiohook-napi');
 const koffi = require('koffi');
 const timers = require('./src/main/services/timers');
+const menuWindow = require('./src/main/services/menuWindow');
 const watchers = require('./src/main/services/watchers');
 
 let win;
@@ -272,20 +273,21 @@ app.whenReady().then(() => {
   tray.on('click', toggleCat);
   // Auto-start Windows. Saat dev (npm start) harus menyebut path dan folder proyek.
   const loginOpts = app.isPackaged ? {} : { path: process.execPath, args: [app.getAppPath()] };
-  tray.setContextMenu(
-    Menu.buildFromTemplate([
-      { label: 'Tampilkan / sembunyikan kucing', click: toggleCat },
-      { label: 'Kustomisasi...', click: openPanel },
-      {
-        label: 'Jalankan saat Windows menyala',
-        type: 'checkbox',
-        checked: app.getLoginItemSettings(loginOpts).openAtLogin,
-        click: (item) => app.setLoginItemSettings({ openAtLogin: item.checked, ...loginOpts }),
-      },
-      { type: 'separator' },
-      { label: 'Keluar', click: () => app.quit() },
-    ])
-  );
+  const trayState = () => ({
+    visible: win.isVisible(),
+    autostart: app.getLoginItemSettings(loginOpts).openAtLogin,
+  });
+  // Klik kanan ikon tray: menu buatan sendiri (gayanya sama dengan menu klik kanan kucing)
+  tray.on('right-click', () => menuWindow.open('tray'));
+  ipcMain.handle('tray-state', () => trayState());
+  ipcMain.handle('tray-action', (event, action) => {
+    if (action === 'showhide') toggleCat();
+    else if (action === 'panel') openPanel();
+    else if (action === 'autostart') {
+      app.setLoginItemSettings({ openAtLogin: !trayState().autostart, ...loginOpts });
+    } else if (action === 'quit') app.quit();
+    return trayState();
+  });
 });
 
 app.on('will-quit', () => {

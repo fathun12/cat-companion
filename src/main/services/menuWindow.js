@@ -4,6 +4,7 @@ const path = require('path');
 const W = 270; // lebar jendela (CSS: menu 256 + ruang bayangan 10 + sisa)
 let menu = null;
 let at = { x: 0, y: 0 }; // posisi kursor saat menu dibuka
+let shownAt = 0; // kapan menu mulai tampil (untuk mengabaikan blur sesaat)
 
 // Menu muncul di samping kursor; kalau tidak muat, dibalik ke kiri atau atas
 function place(h) {
@@ -15,7 +16,14 @@ function place(h) {
   return { x, y };
 }
 
-function open() {
+function show(m) {
+  shownAt = Date.now();
+  m.show();
+  m.focus();
+}
+
+// mode: 'cat' = menu klik kanan kucing, 'tray' = menu klik kanan ikon tray
+function open(mode) {
   if (menu && !menu.isDestroyed()) menu.close();
   at = screen.getCursorScreenPoint();
   const p = place(480);
@@ -35,16 +43,18 @@ function open() {
   });
   menu = m;
   m.setAlwaysOnTop(true, 'screen-saver');
-  m.loadFile(path.join(__dirname, '..', '..', 'renderer', 'menu', 'index.html'));
+  m.loadFile(path.join(__dirname, '..', '..', 'renderer', 'menu', 'index.html'), {
+    query: { mode: mode || 'cat' },
+  });
   m.on('blur', () => {
-    if (!m.isDestroyed()) m.close(); // klik di luar menu = tutup
+    if (m.isDestroyed()) return;
+    // Klik di luar menu = tutup. Blur dalam 400 ms pertama (taskbar merebut fokus) diabaikan.
+    if (Date.now() - shownAt < 400) m.focus();
+    else m.close();
   });
   // Jaga-jaga kalau tampilan gagal memberi tahu ukurannya
   setTimeout(() => {
-    if (!m.isDestroyed() && !m.isVisible()) {
-      m.show();
-      m.focus();
-    }
+    if (!m.isDestroyed() && !m.isVisible()) show(m);
   }, 1500);
 }
 
@@ -54,10 +64,7 @@ ipcMain.on('menu-size', (event, h) => {
   h = Math.max(100, Math.min(Math.ceil(h), 900));
   const p = place(h);
   menu.setBounds({ x: p.x, y: p.y, width: W, height: h });
-  if (!menu.isVisible()) {
-    menu.show();
-    menu.focus();
-  }
+  if (!menu.isVisible()) show(menu);
 });
 
 ipcMain.on('menu-close', () => {

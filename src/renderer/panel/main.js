@@ -95,6 +95,19 @@ function drawGrid(key) {
     ctx.lineTo(cv.width, y * cs + 0.5);
   }
   ctx.stroke();
+
+  // Sumbu cermin: garis putus-putus pink (hanya saat Cermin ON, tidak untuk kuping)
+  if (mirror && key !== 'earL' && key !== 'earR') {
+    const ax = (g.w / 2 + mirrorShift(key) / 2) * cs;
+    ctx.setLineDash([5, 4]);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#ff8fb1';
+    ctx.beginPath();
+    ctx.moveTo(ax, 0);
+    ctx.lineTo(ax, cv.height);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
   drawHover(key, ctx, cs);
 }
 
@@ -102,6 +115,9 @@ const drawAll = () => Look.PART_KEYS.forEach(drawGrid);
 
 // Pasangan cermin: kuping kiri <-> kuping kanan, bagian lain bercermin di kisinya sendiri
 const otherKey = (key) => (key === 'earL' ? 'earR' : key === 'earR' ? 'earL' : key);
+
+// Geser sumbu cermin per kisi (satuan setengah sel; 0 = tepat di tengah kisi). Kuping selalu 0.
+const mirrorShift = (key) => (key === 'earL' || key === 'earR' ? 0 : (look.mirrorX && look.mirrorX[key]) || 0);
 
 // Hanya piksel isi badan yang bisa dilukis (bukan garis tepi, bukan area kosong)
 function paintable(key, x, y) {
@@ -119,7 +135,7 @@ function brushRects(key, gx, gy) {
   const rects = [{ k: key, x: x0, y: y0 }];
   if (mirror) {
     const mk = otherKey(key);
-    rects.push({ k: mk, x: look.parts[mk].w - (x0 + brush), y: y0 });
+    rects.push({ k: mk, x: look.parts[mk].w - (x0 + brush) + mirrorShift(key), y: y0 });
   }
   return rects;
 }
@@ -163,7 +179,7 @@ function fillCells(key, gx, gy) {
   let cells = floodCells(key, gx, gy);
   if (mirror) {
     const mk = otherKey(key);
-    cells = cells.concat(floodCells(mk, look.parts[mk].w - 1 - gx, gy));
+    cells = cells.concat(floodCells(mk, look.parts[mk].w - 1 - gx + mirrorShift(key), gy));
   }
   return cells;
 }
@@ -284,6 +300,37 @@ function bindCanvas(key, cv) {
   });
 }
 
+const axLabels = {};
+const axText = (key) => {
+  const m = mirrorShift(key);
+  return m === 0 ? '0' : (m > 0 ? '+' : '') + m;
+};
+
+// Tombol geser sumbu cermin di samping judul tiap kisi
+function axisControls(key) {
+  const box = document.createElement('span');
+  box.className = 'ax';
+  box.title = 'Geser sumbu cermin (terlihat saat Cermin ON)';
+  const val = document.createElement('span');
+  val.className = 'axv';
+  axLabels[key] = val;
+  const mk = (txt, d) => {
+    const b = document.createElement('button');
+    b.className = 'chip sm';
+    b.textContent = txt;
+    b.onclick = () => {
+      look.mirrorX = look.mirrorX || {};
+      look.mirrorX[key] = Math.max(-6, Math.min(6, mirrorShift(key) + d));
+      val.textContent = axText(key);
+      drawGrid(key);
+      send();
+    };
+    return b;
+  };
+  box.append(mk('<', -1), val, mk('>', 1));
+  return box;
+}
+
 function buildGrids() {
   const box = $('grids');
   box.innerHTML = '';
@@ -295,6 +342,10 @@ function buildGrids() {
     const tag = document.createElement('div');
     tag.className = 'tag';
     tag.textContent = LABEL[key];
+    const head = document.createElement('div');
+    head.className = 'phead';
+    head.appendChild(tag);
+    if (key !== 'earL' && key !== 'earR') head.appendChild(axisControls(key));
     const wrap = document.createElement('div');
     wrap.className = 'cwrap';
     const cv = document.createElement('canvas');
@@ -303,7 +354,7 @@ function buildGrids() {
     canv[key] = cv;
     bindCanvas(key, cv);
     wrap.appendChild(cv);
-    part.append(tag, wrap);
+    part.append(head, wrap);
     box.appendChild(part);
   }
 }
@@ -354,6 +405,7 @@ $('cCustom').addEventListener('input', () => {
 $('bMirror').addEventListener('click', () => {
   mirror = !mirror;
   refreshTools();
+  drawAll();
 });
 
 // ===== Tampilan dan mata =====
@@ -368,6 +420,7 @@ function fillInputs() {
   $('eIris2Note').textContent = look.eyeColor2 ? '' : '(asli)';
   $('eOdd').checked = !!look.odd;
   $('eIris2row').style.display = look.odd ? '' : 'none';
+  Object.keys(axLabels).forEach((k) => (axLabels[k].textContent = axText(k)));
 }
 
 $('cBody').addEventListener('input', () => {
@@ -413,6 +466,7 @@ $('eOdd').addEventListener('change', () => {
 function normalize(l) {
   const out = clone(l);
   out.parts = out.parts || {};
+  out.mirrorX = out.mirrorX || {};
   for (const key of Look.PART_KEYS) {
     const { w, h } = dims[key];
     const g = out.parts[key];
