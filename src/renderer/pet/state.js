@@ -29,6 +29,8 @@ const S = {
   TIRED_MS: 6000, // lama lelah (mata tertutup + gelembung)
   EXCITED_KPS: 4, // ketikan per detik yang bikin ekor kibas cepat (sebelum gelembung/memerah); makin kecil = makin gampang semangat
   EXCITED_HOLD_MS: 1500, // ekor tetap kibas cepat sekian ms setelah ngetik melambat
+  EXCITED_WAG_PERIOD: 0.35, // detik per satu kibasan saat semangat (makin kecil makin cepat); 0.35 = sama dengan mode bermain
+  EXCITED_WAG_AMP: 38, // lebar kibasan (derajat); mode bermain 25, dilebarkan karena ekor di pose ketik sebagian tertutup
 
   // ----- Pose scroll (kucing menarik gulungan tisu) -----
   SCROLL_HOLD_MS: 1400, // pose scroll bertahan sekian ms setelah scroll terakhir
