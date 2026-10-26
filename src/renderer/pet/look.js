@@ -36,8 +36,9 @@ const SRC = {
 // Pose perayaan: tangan terangkat (assets/cat/celebrate/). Kalau filenya belum ada, dilewati
 // dan pose perayaan memakai tangan scroll sementara.
 for (const k of ['tangan_kiri', 'tangan_kanan']) {
-  if (fs.existsSync(path.join(ASSETS, 'cat', 'celebrate', k + '.png'))) {
-    SRC['c_' + k] = 'cat/celebrate/' + k + '.png';
+  const f = k + '_angkat.png';
+  if (fs.existsSync(path.join(ASSETS, 'cat', 'celebrate', f))) {
+    SRC['c_' + k] = 'cat/celebrate/' + f;
   }
 }
 const RECOLOR = Object.keys(SRC);

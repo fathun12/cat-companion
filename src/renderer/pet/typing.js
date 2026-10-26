@@ -11,6 +11,7 @@ const DIZZY_RING = [[0, -1], [1, 0], [0, 1], [-1, 0]]; // atas, kanan, bawah, ki
 let heat = 0; // 0 = tenang, 1 = memerah
 let hot = false, hotUntil = 0, tiredUntil = 0;
 let tired = false, frustrated = false, spd = 0; // dihitung ulang tiap frame di updateHeat
+let kps = 0, excitedUntil = 0; // ketikan per detik; ekor tetap cepat sampai waktu ini
 let kick = 0, kickV = 0, seenKey = 0, wagPhase = 0;
 let nextDizzy = 0, dizzyStart = -10000; // pupil pusing saat memerah
 
@@ -18,7 +19,8 @@ let nextDizzy = 0, dizzyStart = -10000; // pupil pusing saat memerah
 function updateHeat(t, dt) {
   const keys = S.keyTimes;
   while (keys.length && t - keys[0] > 1000) keys.shift();
-  spd = Math.min(1, keys.length / 8); // 0 = pelan, 1 = ngebut
+  kps = keys.length;
+  spd = Math.min(1, kps / 8); // 0 = pelan, 1 = ngebut
   tired = !S.sleeping && t < tiredUntil;
   if (S.sleeping) {
     heat = 0;
@@ -93,8 +95,9 @@ function drawEyes(t, blinkEnd) {
 
 // Ekor berkibas: makin cepat mengetik, makin cepat kibasannya.
 // Saat gelembung muncul atau memerah = sama dengan mode excited (0,35 dtk, 25 derajat)
-function drawTail(dt) {
-  const excited = frustrated || hot;
+function drawTail(t, dt) {
+  if (kps >= S.EXCITED_KPS) excitedUntil = t + S.EXCITED_HOLD_MS; // ditahan sebentar supaya tidak gonta-ganti
+  const excited = frustrated || hot || t < excitedUntil;
   const wagPeriod = tired ? 3 : excited ? 0.35 : 1.4 - 1.0 * spd;
   const wagAmp = tired ? 5 : excited ? 25 : 10 + 12 * spd;
   wagPhase += ((dt / 1000) * (2 * Math.PI)) / wagPeriod;
@@ -134,7 +137,7 @@ function update(t, dt, breath, blinkEnd) {
     drawFeet();
     drawHead(dt, breath);
     drawEyes(t, blinkEnd);
-    drawTail(dt);
+    drawTail(t, dt);
     drawRed(t);
   }
   drawBubbles(t, show);

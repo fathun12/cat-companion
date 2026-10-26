@@ -27,6 +27,8 @@ const S = {
   FRUSTRATE_AT: 0.4, // di atas ini gelembung frustrasi muncul (0 sampai 1)
   HOT_MS: 6000, // lama memerah
   TIRED_MS: 6000, // lama lelah (mata tertutup + gelembung)
+  EXCITED_KPS: 4, // ketikan per detik yang bikin ekor kibas cepat (sebelum gelembung/memerah); makin kecil = makin gampang semangat
+  EXCITED_HOLD_MS: 1500, // ekor tetap kibas cepat sekian ms setelah ngetik melambat
 
   // ----- Pose scroll (kucing menarik gulungan tisu) -----
   SCROLL_HOLD_MS: 1400, // pose scroll bertahan sekian ms setelah scroll terakhir

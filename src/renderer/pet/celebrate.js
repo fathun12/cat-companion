@@ -4,7 +4,7 @@ const { setSleep, spawnLove } = require('./actions');
 
 // Pose perayaan: kucing berdiri (badan, kaki, kepala dari pose scroll), tangan terangkat,
 // lompat-lompat, hati melayang. Dipicu IPC 'celebrate' dari watchers.js (proses utama).
-// Tangan terangkat: assets/cat/celebrate/tangan_kiri.png dan tangan_kanan.png (48x48).
+// Tangan terangkat: assets/cat/celebrate/tangan_kiri_angkat.png dan tangan_kanan_angkat.png (48x48).
 // Kalau belum ada, tangan pose scroll dipakai sementara.
 
 const pct = (v) => v * 100 + '%';
