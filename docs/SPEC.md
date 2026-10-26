@@ -254,3 +254,12 @@ Data pengguna di `%APPDATA%\cat-companion\`: `settings.json`, `look.json`, `pos.
 
 Hal yang belum diverifikasi AI penulis: isi lengkap `look.js` (kecuali 25 baris awal), isi `panel/main.js` dan `index.html` terbaru, `electron-builder.yml`, dan `README.md`. Minta lewat perintah clipboard sebelum mengeditnya.
 
+
+---
+
+## Catatan optimasi RAM (26 Oktober 2026)
+
+- Total RAM turun dari 288 MB ke 117 MB (privat, versi build).
+- pp.disableHardwareAcceleration() di main.js: proses GPU turun dari 83 MB ke 15 MB.
+- Mode mengintip kini membaca SHQueryUserNotificationState langsung lewat modul koffi (timer 1,5 detik di main.js). Proses PowerShell tersembunyi DIBUANG (hemat 65 MB). JANGAN dikembalikan ke PowerShell. Privasi tetap sama: hanya satu angka status.
+- uild/icon.ico harus ICO asli (16/32/48/256). Sumber PNG ada di uild/icon-src.png.
