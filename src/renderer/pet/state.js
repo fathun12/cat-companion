@@ -58,8 +58,10 @@ const S = {
   DRINK_DROP_PX: 10, // kepala turun sekian piksel gambar ke mangkuk (hasil ukur desain; jangan diubah kecuali desain berubah)
   DRINK_IN_MS: 450, // lama kepala turun
   DRINK_OUT_MS: 450, // lama kepala naik lagi
-  DRINK_BOB_MS: 500, // satu siklus jilat: setengah pertama kepala di mangkuk + lidah keluar, setengah kedua kepala naik + lidah masuk
-  DRINK_BOB_UP_PX: 1, // seberapa naik kepala antar jilatan (piksel gambar)
+  DRINK_BOB_MS: 500, // satu siklus jilat: setengah pertama kepala di mangkuk + lidah penuh, setengah kedua kepala naik + lidah menciut
+  DRINK_BOB_UP_PX: 2, // seberapa naik kepala antar jilatan (piksel gambar)
+  DRINK_TONGUE_Y0: 32, // baris teratas lidah di lidah.png (hasil ukur)
+  DRINK_TONGUE_UP_ROWS: 1, // berapa baris lidah yang kelihatan saat kepala naik (lidah penuh = 3 baris)
   cel: null, // layer pose perayaan (diisi buildCelebrate)
   scr: null, // layer pose scroll (diisi buildScroll)
   lastScroll: -10000,

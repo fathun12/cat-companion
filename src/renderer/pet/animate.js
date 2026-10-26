@@ -21,6 +21,17 @@ function frame(t) {
   const dt = Math.min(t - prevT, 100);
   prevT = t;
 
+  // ----- Pose yang menimpa gerak normal: perayaan dan minum -----
+  const celebrating = Celebrate.isActive(t) && !S.dragging;
+  const drinking = Drink.isActive(t) && !S.dragging && !S.sleeping && !celebrating;
+  if (drinking) {
+    // Saat minum, semua bagian kepala dan badan dikunci: tidak ikut kursor, tidak bermain, tidak mendengkur
+    S.playing = false;
+    S.playAmt = 0;
+    S.petTime = 0;
+    fx = fvx = fy = fvy = bx = bvx = 0;
+  }
+
   // ----- Napas -----
   const breathPeriod = S.sleeping ? 4.5 : 3.2;
   const breath = Math.round((Math.sin((s * 2 * Math.PI) / breathPeriod) + 1) / 2);
@@ -44,7 +55,7 @@ function frame(t) {
     setSleep(false);
     S.lastActivity = t;
   }
-  S.purring = !S.sleeping && !S.playing && S.petTime > 1000;
+  S.purring = !S.sleeping && !S.playing && !drinking && S.petTime > 1000;
   if (S.purring && t - S.lastPurrHeart > 1400) {
     S.lastPurrHeart = t;
     spawnLove();
@@ -53,7 +64,6 @@ function frame(t) {
 
   // ----- Kepala dan badan condong ke kursor dengan efek kenyal -----
   const fsec = Math.min(dt, 50) / 1000;
-  const drinking = Drink.isActive(t) && !S.dragging && !S.sleeping && !Celebrate.isActive(t);
   let dirX = 0, dirY = 0;
   if (!S.sleeping && !S.dragging && !drinking && t - S.lastCursorMove < 5000) {
     const fcx = stage.offsetLeft + stage.offsetWidth / 2;
@@ -96,7 +106,7 @@ function frame(t) {
   parts.pupil.style.display = closed ? 'none' : '';
   parts.mata_tidur.style.display = closed ? '' : 'none';
 
-  // ----- Pupil: melirik acak, melihat ke bawah saat mengetik, mengikuti kursor -----
+  // ----- Pupil: melirik acak, melihat ke bawah saat mengetik, mengikuti kursor (kecuali saat minum) -----
   if (t >= nextLook) {
     lookX = Math.floor(rand(-1, 2));
     nextLook = t + rand(2000, 5000);
@@ -105,7 +115,10 @@ function frame(t) {
   const following = !S.sleeping && t - S.lastCursorMove < 5000;
   let ex = lookX;
   let ey = 0;
-  if (typing) {
+  if (drinking) {
+    ex = 0;
+    ey = 0;
+  } else if (typing) {
     ey = 1;
   } else if (following) {
     const cx = stage.offsetLeft + stage.offsetWidth / 2;
@@ -118,9 +131,6 @@ function frame(t) {
   // ----- Tangan: sekarang hanya bergerak saat scroll -----
   parts.tangan.style.transform = `translate(0px, ${t < S.keyPulseEnd ? SCALE : 0}px)`;
 
-  // ----- Pose perayaan (celebrate.js) menimpa pose lain selama berlangsung -----
-  const celebrating = Celebrate.isActive(t) && !S.dragging;
-  // ----- Pose minum (drink.js): `drinking` dihitung di atas; menimpa pose mengetik dan scroll -----
   // ----- Pose mengetik (logika di typing.js) menggantikan kucing biasa -----
   let showTyping = Typing.update(t, dt, breath, blinkEnd);
   if (celebrating || drinking) {

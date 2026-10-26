@@ -1,9 +1,9 @@
 const { ipcRenderer } = require('electron');
 const S = require('./state');
 
-// Pose minum: kepala turun ke mangkuk (DRINK_DROP_PX), lidah di mulut (anak grup kepala, ikut gerak kepala),
-// kepala naik-turun kecil sambil lidah keluar-masuk. Dipicu IPC 'say' jenis 'drink' dari timers.js.
-// Gambar: assets/cat/drink/bowl.png dan lidah.png (48x48, tidak diwarnai ulang).
+// Pose minum: kepala turun ke mangkuk (DRINK_DROP_PX). Lidah adalah anak grup kepala, jadi selalu ikut gerak kepala.
+// Siklus jilat: kepala di mangkuk + lidah menjulur penuh, lalu kepala naik sedikit + lidah menciut.
+// Dipicu IPC 'say' jenis 'drink' dari timers.js.
 // lidah.png digambar pada posisi SAAT kepala sudah turun, jadi di grup kepala digeser naik sebesar DRINK_DROP_PX.
 
 let bowl = null;
@@ -24,7 +24,7 @@ function buildDrink() {
   tongue = mkImg('lidah.png');
   tongue.style.transform = `translateY(${-S.DRINK_DROP_PX * S.SCALE}px)`;
   S.stage.appendChild(bowl); // paling atas, di bawah dagu
-  S.groups.head.appendChild(tongue); // di kepala, ikut turun-naik
+  S.groups.head.appendChild(tongue); // di kepala, ikut gerak kepala
 }
 
 const isActive = (t) => startAt >= 0 && t >= startAt && t < startAt + S.DRINK_MS;
@@ -38,23 +38,28 @@ function amount(t) {
   return 1;
 }
 
-// true = kepala di mangkuk + lidah keluar; false = kepala naik sedikit, lidah masuk
-const licking = (t) =>
-  amount(t) >= 1 && (t - startAt - S.DRINK_IN_MS) % S.DRINK_BOB_MS < S.DRINK_BOB_MS / 2;
+// true = kepala paling bawah (lidah penuh); false = kepala naik sedikit (lidah menciut)
+const headDown = (t) => (t - startAt - S.DRINK_IN_MS) % S.DRINK_BOB_MS < S.DRINK_BOB_MS / 2;
 
 // Seberapa turun kepala (piksel layar), dipakai animate.js
 function dip(t) {
   if (!isActive(t) || S.dragging || S.sleeping) return 0;
   const a = amount(t);
-  const drop = Math.round(a * S.DRINK_DROP_PX);
-  const up = a >= 1 && !licking(t) ? S.DRINK_BOB_UP_PX : 0;
-  return (drop - up) * S.SCALE;
+  const up = a >= 1 && !headDown(t) ? S.DRINK_BOB_UP_PX : 0;
+  return (Math.round(a * S.DRINK_DROP_PX) - up) * S.SCALE;
 }
 
 function update(t, active) {
   if (!bowl) return;
   bowl.style.display = active ? '' : 'none';
-  tongue.style.display = active && licking(t) ? '' : 'none';
+  const out = active && amount(t) >= 1;
+  tongue.style.display = out ? '' : 'none';
+  if (out) {
+    // Menciut = potong bagian bawah lidah, sisakan DRINK_TONGUE_UP_ROWS baris dari atas lidah
+    const h = tongue.naturalHeight || 48;
+    const cut = (h - (S.DRINK_TONGUE_Y0 + S.DRINK_TONGUE_UP_ROWS)) * S.SCALE;
+    tongue.style.clipPath = headDown(t) ? 'none' : `inset(0 0 ${cut}px 0)`;
+  }
 }
 
 ipcRenderer.on('say', (event, text, kind) => {
