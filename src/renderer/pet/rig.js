@@ -135,6 +135,20 @@ async function buildRig() {
   Scroll.buildScroll();
 }
 
+// Garis tepi luar otomatis, warnanya mengikuti "Garis tepi" di panel kustomisasi
+function setOutline(look) {
+  const d = S.OUTLINE_PX * S.SCALE;
+  const c = (look && look.outline) || '#ffffff';
+  const f =
+    d > 0
+      ? `drop-shadow(${d}px 0 0 ${c}) drop-shadow(${-d}px 0 0 ${c}) ` +
+        `drop-shadow(0 ${d}px 0 ${c}) drop-shadow(0 ${-d}px 0 ${c})`
+      : '';
+  S.stage.style.filter = S.OUTLINE.idle ? f : '';
+  S.typ.box.style.filter = S.OUTLINE.typing && !S.OUTLINE.idle ? f : '';
+  S.scr.box.style.filter = S.OUTLINE.scroll && !S.OUTLINE.idle ? f : '';
+}
+
 async function applyLook(look) {
   const urls = await Look.recolorAll(look);
   for (const id in urls) if (S.parts[id]) S.parts[id].src = urls[id];
@@ -154,6 +168,7 @@ async function applyLook(look) {
   T.closed.src = await Look.closedEyes(look);
 
   Scroll.applyLook(urls, look); // pose scroll ikut warna dan pola yang sama
+  setOutline(look);
 }
 
 // Terapkan tampilan tersimpan, lalu dengarkan perubahan dari panel kustomisasi

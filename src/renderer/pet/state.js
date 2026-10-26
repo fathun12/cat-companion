@@ -32,9 +32,13 @@ const S = {
   SCROLL_HOLD_MS: 1400, // pose scroll bertahan sekian ms setelah scroll terakhir
   SCROLL_SHIFT_Y: 0, // geser pose scroll (piksel gambar, negatif = naik) supaya lantainya sejajar
   TISSUE_LINES: true, // false = tanpa garis tisu yang meluncur turun
-  LINE_TRAVEL: 9, // jarak garis turun (piksel gambar)
-  LINE_MS: 700, // lama satu garis turun sampai hilang
+  LINE_TRAVEL: 5, // makin besar, makin jauh garis meluncur turun (acak, piksel gambar)
+  LINE_MS: 800, // lama satu garis dari muncul sampai hilang
   SCROLL_BUBBLES: ['effects/gelembung2.png', 'effects/gelembung4.png'], // gelembung saat scroll, bergantian; [] = tanpa gelembung
+
+  // ----- Garis tepi luar otomatis (warnanya mengikuti "Garis tepi" di panel kustomisasi) -----
+  OUTLINE_PX: 1, // tebal garis (piksel gambar); 0 = mati
+  OUTLINE: { idle: false, typing: true, scroll: true }, // pose mana yang diberi garis tepi
   scr: null, // layer pose scroll (diisi buildScroll)
   lastScroll: -10000,
   scrollTick: 0,

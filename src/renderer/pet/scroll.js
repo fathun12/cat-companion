@@ -50,24 +50,19 @@ function measureRoll() {
     const ctx = c.getContext('2d');
     ctx.drawImage(img, 0, 0);
     const d = ctx.getImageData(0, 0, w, h).data;
-    let minX = w, maxX = -1, maxY = -1;
+    let minX = w, maxX = -1, minY = h, maxY = -1;
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         if (d[(y * w + x) * 4 + 3] > 0) {
           if (x < minX) minX = x;
           if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
           if (y > maxY) maxY = y;
         }
       }
     }
     if (maxX < 0) return;
-    const sw = Math.max(2, Math.round((maxX - minX + 1) * 0.6));
-    A.roll = {
-      size: h,
-      left: Math.round((minX + maxX + 1) / 2 - sw / 2),
-      top: maxY + 1,
-      w: sw,
-    };
+    A.roll = { x1: minX, x2: maxX, y1: minY, y2: maxY };
   };
   const file = path.join(DIR, 'tisu.png');
   img.src = 'data:image/png;base64,' + fs.readFileSync(file).toString('base64');
@@ -193,31 +188,34 @@ function applyLook(urls, look) {
   A.img.kepala.src = urls.s_kepala;
 }
 
-// Garis tisu: beberapa garis vertikal kecil meluncur turun dari gulungan, muncul lalu memudar
+// Garis tisu: 1-3 garis vertikal kecil di tengah gulungan, posisi, panjang, dan kecepatan acak.
+// Tiap garis muncul pelan, turun sedikit, lalu memudar.
 function spawnLines() {
   const R = A.roll;
-  if (!S.TISSUE_LINES || !R || liveLines > 14) return;
+  if (!S.TISSUE_LINES || !R || liveLines > 12) return;
   const SC = S.SCALE;
-  const n = R.w >= 5 ? 3 : R.w >= 3 ? 2 : 1;
-  const travel = S.LINE_TRAVEL * SC;
+  const n = 1 + Math.floor(rand(0, 3));
+  const cy = Math.round((R.y1 + R.y2) / 2);
   for (let i = 0; i < n; i++) {
-    const x = n === 1 ? R.left + (R.w - 1) / 2 : R.left + (i * (R.w - 1)) / (n - 1);
+    const len = 2 + Math.floor(rand(0, 3)); // panjang 2-4 piksel
+    const x = R.x1 + Math.floor(rand(0, R.x2 - R.x1 + 1));
+    const y = cy - Math.floor(len / 2) + Math.floor(rand(-2, 3));
+    const travel = (2 + Math.floor(rand(0, S.LINE_TRAVEL))) * SC;
     const line = document.createElement('div');
     line.style.cssText =
-      'position:absolute;pointer-events:none;background:#fff;opacity:0;' +
-      `left:${Math.round(x) * SC}px;top:${R.top * SC}px;width:${SC}px;height:${3 * SC}px;` +
-      'box-shadow:0 0 0 1px #333;';
+      'position:absolute;pointer-events:none;background:#fff;opacity:0;box-shadow:0 0 0 1px #333;' +
+      `left:${x * SC}px;top:${y * SC}px;width:${SC}px;height:${len * SC}px;`;
     A.fx.appendChild(line);
     liveLines++;
     line
       .animate(
         [
           { transform: 'translateY(0px)', opacity: 0 },
-          { transform: `translateY(${travel * 0.3}px)`, opacity: 1, offset: 0.3 },
+          { transform: `translateY(${travel * 0.35}px)`, opacity: 1, offset: 0.35 },
           { transform: `translateY(${travel * 0.7}px)`, opacity: 1, offset: 0.65 },
           { transform: `translateY(${travel}px)`, opacity: 0 },
         ],
-        { duration: S.LINE_MS, delay: Math.round(rand(0, 120)), easing: 'steps(7)' }
+        { duration: S.LINE_MS * rand(0.7, 1.2), delay: Math.round(rand(0, 150)), easing: 'steps(5)' }
       )
       .addEventListener('finish', () => {
         line.remove();

@@ -369,3 +369,6 @@ Kemungkinan masalah:
 - Event `scroll` di `input.js` menaikkan `S.scrollTick` dan menukar `S.scrollFrame` (tangan kiri/kanan bergantian). Efek tisu: garis vertikal kecil meluncur turun dari bawah gulungan (posisi dibaca dari `tisu.png`) lalu memudar, dimunculkan tiap event scroll (`TISSUE_LINES`, `LINE_TRAVEL`, `LINE_MS` di `state.js`). Pose scroll juga berkedip (mata tertutup digambar lewat kode dari bentuk `scroll/mata.png`) dan menampilkan gelembung bergantian dari daftar `SCROLL_BUBBLES` (sementara `gelembung2` dan `gelembung4`).
 - Layer pose scroll diwarnai lewat `look.js` (`s_*` di `SRC` dan `PID`; kaki dan tangan memakai pola `tangan`). Kumis, mata, pupil tidak diwarnai.
 - Catatan untuk AI penerus: logika pose mengetik masih ada di `animate.js`; sebaiknya dipindah ke modul sendiri seperti `scroll.js`.
+
+- Garis tisu (pose scroll): 1-3 garis vertikal acak di tengah gulungan, posisi dibaca dari `tisu.png` (`A.roll` di `scroll.js`); `LINE_TRAVEL`, `LINE_MS` di `state.js`.
+- Garis tepi luar otomatis (`setOutline` di `rig.js`, pengaturan `OUTLINE_PX` dan `OUTLINE` di `state.js`): warna mengikuti `look.outline`; default aktif untuk pose mengetik dan scroll, mati untuk idle (sudah punya garis tepi di gambar).
