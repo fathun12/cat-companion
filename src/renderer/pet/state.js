@@ -38,7 +38,7 @@ const S = {
 
   // ----- Garis tepi luar otomatis (warnanya mengikuti "Garis tepi" di panel kustomisasi) -----
   OUTLINE_PX: 1, // tebal garis (piksel gambar); 0 = mati
-  OUTLINE: { idle: false, typing: true, scroll: true }, // pose mana yang diberi garis tepi
+  OUTLINE: { idle: true, typing: true, scroll: true }, // pose mana yang diberi garis tepi
   scr: null, // layer pose scroll (diisi buildScroll)
   lastScroll: -10000,
   scrollTick: 0,

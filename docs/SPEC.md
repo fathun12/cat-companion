@@ -372,3 +372,6 @@ Kemungkinan masalah:
 
 - Garis tisu (pose scroll): 1-3 garis vertikal acak di tengah gulungan, posisi dibaca dari `tisu.png` (`A.roll` di `scroll.js`); `LINE_TRAVEL`, `LINE_MS` di `state.js`.
 - Garis tepi luar otomatis (`setOutline` di `rig.js`, pengaturan `OUTLINE_PX` dan `OUTLINE` di `state.js`): warna mengikuti `look.outline`; default aktif untuk pose mengetik dan scroll, mati untuk idle (sudah punya garis tepi di gambar).
+
+- Menu klik kanan sekarang jendela buatan sendiri (brutalis + pixel art, font Pixelify Sans dari `@fontsource/pixelify-sans`): `src/main/services/menuWindow.js` (jendela, posisi, tutup saat blur) dan `src/renderer/menu/` (`index.html`, `menu.js`). `timers.js` menyediakan `menu-state` dan `menu-action` (IPC); `buildMenu()` lama sudah tidak dipakai. Menu tray tetap menu bawaan Windows.
+- Garis tepi luar otomatis kini aktif juga untuk pose idle (`OUTLINE.idle: true` di `state.js`).

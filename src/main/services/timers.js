@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { app, Menu, ipcMain } = require('electron');
+const menuWindow = require('./menuWindow');
 
 const DEFAULTS = { focusMin: 25, breakMin: 5, stretchMin: 45, waterMin: 60, hunt: true, peek: true, name: '', messages: [], note: '' }; // 0 = nonaktif
 let settings = { ...DEFAULTS };
@@ -107,6 +108,49 @@ function tick() {
   sendStatus();
 }
 
+// ===== Untuk menu klik kanan buatan sendiri (src/renderer/menu) =====
+const OPTIONS = {
+  focusMin: [1, 15, 25, 45, 50],
+  breakMin: [1, 5, 10, 15],
+  stretchMin: [0, 1, 30, 45, 60],
+  waterMin: [0, 1, 30, 45, 60],
+};
+
+function togglePomo() {
+  if (pomo.phase === 'idle') {
+    begin('focus');
+    say('Fokus dimulai! Semangat!', 'hop');
+  } else if (pomo.running) {
+    pomo.left = Math.max(0, pomo.endAt - Date.now());
+    pomo.running = false;
+  } else {
+    pomo.endAt = Date.now() + pomo.left;
+    pomo.running = true;
+  }
+  lastStatus = null;
+  sendStatus();
+}
+
+function resetPomo() {
+  pomo = { phase: 'idle', running: false, endAt: 0, left: 0 };
+  lastStatus = null;
+  sendStatus();
+}
+
+function menuState() {
+  return {
+    phase: pomo.phase,
+    running: pomo.running,
+    status: statusText(),
+    focusMin: settings.focusMin,
+    breakMin: settings.breakMin,
+    stretchMin: settings.stretchMin,
+    waterMin: settings.waterMin,
+    hunt: settings.hunt,
+    peek: settings.peek,
+  };
+}
+
 function radio(label, key, values, fmt) {
   return {
     label,
@@ -192,7 +236,23 @@ function init(browserWindow) {
   load();
   schedule();
   setInterval(tick, 1000);
-  ipcMain.on('show-menu', () => buildMenu().popup({ window: win }));
+  ipcMain.on('show-menu', () => menuWindow.open());
+  ipcMain.handle('menu-state', () => menuState());
+  ipcMain.handle('menu-action', (event, action, key, value) => {
+    if (action === 'pomo') togglePomo();
+    else if (action === 'reset') resetPomo();
+    else if (action === 'set' && OPTIONS[key] && OPTIONS[key].includes(value)) {
+      settings[key] = value;
+      save();
+      schedule();
+    } else if (action === 'toggle' && (key === 'hunt' || key === 'peek')) {
+      settings[key] = !settings[key];
+      save();
+      if (key === 'hunt') send('play-enabled', settings.hunt);
+    } else if (action === 'panel') ipcMain.emit('open-panel');
+    else if (action === 'quit') app.quit();
+    return menuState();
+  });
   ipcMain.handle('play-get', () => settings.hunt);
 
   // Catatan sematan di atas kepala kucing
