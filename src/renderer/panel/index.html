@@ -188,7 +188,7 @@
     .sw.on { outline: 3px solid var(--pink); outline-offset: 1px; }
     #grids { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
     .part .cwrap { display: inline-block; border: 3px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); background: #2b2140; }
-    .part canvas { display: block; cursor: crosshair; image-rendering: pixelated; }
+    .part canvas { display: block; cursor: none; image-rendering: pixelated; }
 
     .msg { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 7px 10px; border: 3px solid var(--ink); background: var(--cream); box-shadow: 3px 3px 0 var(--ink); }
     .msg .t { padding: 0 6px; background: var(--ink); color: var(--butter); font-weight: 700; }
@@ -246,7 +246,11 @@
             <div class="tag">Alat</div>
             <div class="row" id="tools">
               <button class="chip" data-tool="paint">Kuas</button>
+              <button class="chip" data-tool="fill">Isi</button>
               <button class="chip" data-tool="erase">Penghapus</button>
+            </div>
+            <div class="row" style="margin-top: 8px">
+              <button class="chip" id="bMirror">Cermin: OFF</button>
             </div>
             <div class="sub">Ukuran kuas</div>
             <div class="row" id="brushes">
@@ -258,7 +262,7 @@
             <div class="sub">Warna bercak</div>
             <div id="palette"></div>
             <label style="margin-top: 10px">Warna bebas <input type="color" id="cCustom" value="#e09a4b" /></label>
-            <div class="hint">Klik kiri melukis, klik kanan menghapus. Hanya bagian isi badan yang bisa dilukis.</div>
+            <div class="hint">Klik kiri melukis, klik kanan menghapus. Kotak di kisi menunjukkan sel yang akan kena. Isi mengisi seluruh area bersambung. Cermin melukis sisi kiri dan kanan sekaligus. Hanya bagian isi badan yang bisa dilukis.</div>
           </div>
           <div id="grids"></div>
         </div>

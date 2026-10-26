@@ -281,3 +281,5 @@ Hal yang belum diverifikasi AI penulis: isi lengkap `look.js` (kecuali 25 baris 
 - [26 Okt 2026] Pose minum disempurnakan: saat minum (animate.js, flag drinking) pegas kepala/badan, pupil, mode bermain, dan dengkur dikunci supaya tidak ikut kursor. Lidah (anak grup kepala) selalu kelihatan dan menempel; menjulur penuh saat kepala turun, menciut ke DRINK_TONGUE_UP_ROWS baris (clip-path) saat kepala naik DRINK_BOB_UP_PX.
 
 - [26 Okt 2026] Pose minum: pupil menatap ke bawah (DRINK_PUPIL_DY=1) dan kedip lebih sering (DRINK_BLINK_MIN_MS/MAX_MS) selama minum.
+
+- Editor pola: alat tambahan **Isi** (flood fill 4 arah pada piksel isi badan dengan warna sama, klik kanan = kembali ke warna badan) dan **Cermin** (melukis/mengisi sisi seberang; kuping kiri <-> kuping kanan, bagian lain bercermin di kisinya sendiri, sumbu = tengah kisi). Kursor asli disembunyikan di kisi; gantinya pratinjau di canvas (`drawHover` di `panel/main.js`): kotak seukuran kuas berisi warna pilihan, putus-putus untuk penghapus, area yang akan terisi untuk Isi. Memilih warna tidak memindahkan alat ke Kuas kecuali sedang memakai Penghapus.

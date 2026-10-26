@@ -20,9 +20,11 @@ let look = null; // tampilan yang sedang diedit
 let baseline = null; // tampilan awal, untuk tombol Buang
 let dims = null;
 let sil = null;
-let tool = 'paint';
+let tool = 'paint'; // paint, fill, erase
 let brush = 3;
 let color = '#e09a4b';
+let mirror = false; // melukis dua sisi sekaligus
+let hover = null; // sel yang sedang disentuh mouse: { key, x, y }
 let mine = []; // preset buatan pemilik
 const history = []; // riwayat lukisan untuk Urungkan
 const canv = {};
@@ -93,23 +95,132 @@ function drawGrid(key) {
     ctx.lineTo(cv.width, y * cs + 0.5);
   }
   ctx.stroke();
+  drawHover(key, ctx, cs);
 }
 
 const drawAll = () => Look.PART_KEYS.forEach(drawGrid);
 
-function paintAt(key, gx, gy, erase) {
+// Pasangan cermin: kuping kiri <-> kuping kanan, bagian lain bercermin di kisinya sendiri
+const otherKey = (key) => (key === 'earL' ? 'earR' : key === 'earR' ? 'earL' : key);
+
+// Hanya piksel isi badan yang bisa dilukis (bukan garis tepi, bukan area kosong)
+function paintable(key, x, y) {
   const g = look.parts[key];
-  const s = sil[key];
+  if (x < 0 || y < 0 || x >= g.w || y >= g.h) return false;
+  const L = sil[key].L[y * g.w + x];
+  return L >= 0 && L < 40;
+}
+
+// Kotak-kotak kuas di (gx, gy), termasuk kotak bayangan kalau cermin aktif
+function brushRects(key, gx, gy) {
   const o = Math.floor((brush - 1) / 2);
-  for (let dy = 0; dy < brush; dy++) {
-    for (let dx = 0; dx < brush; dx++) {
-      const x = gx - o + dx;
-      const y = gy - o + dy;
-      if (x < 0 || y < 0 || x >= g.w || y >= g.h) continue;
-      const L = s.L[y * g.w + x];
-      if (L < 0 || L >= 40) continue; // hanya bagian isi badan yang bisa dilukis
-      g.px[y * g.w + x] = erase ? '' : color;
+  const x0 = gx - o;
+  const y0 = gy - o;
+  const rects = [{ k: key, x: x0, y: y0 }];
+  if (mirror) {
+    const mk = otherKey(key);
+    rects.push({ k: mk, x: look.parts[mk].w - (x0 + brush), y: y0 });
+  }
+  return rects;
+}
+
+function paintAt(key, gx, gy, erase) {
+  for (const r of brushRects(key, gx, gy)) {
+    const g = look.parts[r.k];
+    for (let dy = 0; dy < brush; dy++) {
+      for (let dx = 0; dx < brush; dx++) {
+        const x = r.x + dx;
+        const y = r.y + dy;
+        if (!paintable(r.k, x, y)) continue;
+        g.px[y * g.w + x] = erase ? '' : color;
+      }
     }
+  }
+}
+
+// Area bersambung (atas, bawah, kiri, kanan) dengan warna yang sama dengan sel awal
+function floodCells(key, sx, sy) {
+  if (!paintable(key, sx, sy)) return [];
+  const g = look.parts[key];
+  const target = g.px[sy * g.w + sx] || '';
+  const seen = new Set();
+  const stack = [[sx, sy]];
+  const out = [];
+  while (stack.length) {
+    const [x, y] = stack.pop();
+    if (!paintable(key, x, y)) continue;
+    const i = y * g.w + x;
+    if (seen.has(i)) continue;
+    seen.add(i);
+    if ((g.px[i] || '') !== target) continue;
+    out.push([key, x, y]);
+    stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+  }
+  return out;
+}
+
+function fillCells(key, gx, gy) {
+  let cells = floodCells(key, gx, gy);
+  if (mirror) {
+    const mk = otherKey(key);
+    cells = cells.concat(floodCells(mk, look.parts[mk].w - 1 - gx, gy));
+  }
+  return cells;
+}
+
+function applyFill(key, gx, gy, erase) {
+  for (const [k, x, y] of fillCells(key, gx, gy)) {
+    const g = look.parts[k];
+    g.px[y * g.w + x] = erase ? '' : color;
+  }
+}
+
+// Kisi mana saja yang perlu digambar ulang untuk sebuah posisi mouse
+function affected(h) {
+  if (!h) return [];
+  const ks = [h.key];
+  if (mirror && otherKey(h.key) !== h.key) ks.push(otherKey(h.key));
+  return ks;
+}
+
+function setHover(h) {
+  const old = hover;
+  if (old && h && old.key === h.key && old.x === h.x && old.y === h.y) return;
+  hover = h;
+  new Set([...affected(old), ...affected(h)]).forEach(drawGrid);
+}
+
+// Pratinjau di atas kisi: kotak kuas berwarna, atau area yang akan terisi
+function drawHover(key, ctx, cs) {
+  if (!hover) return;
+  const erase = tool === 'erase';
+  if (tool === 'fill') {
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.7;
+    for (const [k, x, y] of fillCells(hover.key, hover.x, hover.y)) {
+      if (k === key) ctx.fillRect(x * cs, y * cs, cs, cs);
+    }
+    ctx.globalAlpha = 1;
+    return;
+  }
+  for (const r of brushRects(hover.key, hover.x, hover.y)) {
+    if (r.k !== key) continue;
+    ctx.globalAlpha = erase ? 0.45 : 0.9;
+    ctx.fillStyle = erase ? '#ffffff' : color;
+    for (let dy = 0; dy < brush; dy++) {
+      for (let dx = 0; dx < brush; dx++) {
+        if (paintable(key, r.x + dx, r.y + dy)) ctx.fillRect((r.x + dx) * cs, (r.y + dy) * cs, cs, cs);
+      }
+    }
+    ctx.globalAlpha = 1;
+    ctx.setLineDash(erase ? [4, 3] : []);
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#ffffff';
+    ctx.strokeRect(r.x * cs + 1.5, r.y * cs + 1.5, brush * cs - 3, brush * cs - 3);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = '#2b2140';
+    ctx.strokeRect(r.x * cs + 1.5, r.y * cs + 1.5, brush * cs - 3, brush * cs - 3);
+    ctx.setLineDash([]);
   }
 }
 
@@ -136,20 +247,35 @@ function bindCanvas(key, cv) {
   };
   const stroke = (e) => {
     const [x, y] = cell(e);
+    hover = { key, x, y };
     paintAt(key, x, y, erase);
-    drawGrid(key);
+    affected(hover).forEach(drawGrid);
     renderPreview();
   };
   cv.addEventListener('mousedown', (e) => {
     e.preventDefault();
-    down = true;
+    const [x, y] = cell(e);
+    hover = { key, x, y };
     erase = e.button === 2 || tool === 'erase';
     pushHistory();
+    if (tool === 'fill') {
+      applyFill(key, x, y, erase);
+      affected(hover).forEach(drawGrid);
+      renderPreview();
+      send();
+      return;
+    }
+    down = true;
     stroke(e);
   });
   cv.addEventListener('mousemove', (e) => {
     if (down) stroke(e);
+    else {
+      const [x, y] = cell(e);
+      setHover({ key, x, y });
+    }
   });
+  cv.addEventListener('mouseleave', () => setHover(null));
   cv.addEventListener('contextmenu', (e) => e.preventDefault());
   window.addEventListener('mouseup', () => {
     if (!down) return;
@@ -185,6 +311,9 @@ function buildGrids() {
 // ===== Alat =====
 function refreshTools() {
   document.querySelectorAll('#tools .chip').forEach((b) => b.classList.toggle('on', b.dataset.tool === tool));
+  $('bMirror').classList.toggle('on', mirror);
+  $('bMirror').textContent = mirror ? 'Cermin: ON' : 'Cermin: OFF';
+  affected(hover).forEach(drawGrid);
   document.querySelectorAll('#brushes .chip').forEach((b) => b.classList.toggle('on', Number(b.dataset.brush) === brush));
   document.querySelectorAll('#palette .sw').forEach((b) => b.classList.toggle('on', b.dataset.color === color));
 }
@@ -197,7 +326,7 @@ function buildPalette() {
     b.dataset.color = c;
     b.onclick = () => {
       color = c;
-      tool = 'paint';
+      if (tool === 'erase') tool = 'paint';
       $('cCustom').value = c;
       refreshTools();
     };
@@ -219,7 +348,11 @@ document.querySelectorAll('#brushes .chip').forEach((b) =>
 );
 $('cCustom').addEventListener('input', () => {
   color = $('cCustom').value;
-  tool = 'paint';
+  if (tool === 'erase') tool = 'paint';
+  refreshTools();
+});
+$('bMirror').addEventListener('click', () => {
+  mirror = !mirror;
   refreshTools();
 });
 
