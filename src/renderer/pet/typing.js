@@ -12,6 +12,7 @@ let heat = 0; // 0 = tenang, 1 = memerah
 let hot = false, hotUntil = 0, tiredUntil = 0;
 let tired = false, frustrated = false, spd = 0; // dihitung ulang tiap frame di updateHeat
 let kps = 0, excitedUntil = 0; // ketikan per detik; ekor tetap cepat sampai waktu ini
+let exc = 0; // 0 = ekor biasa, 1 = penuh semangat (naik/turun mulus, seperti playAmt di animate.js)
 let kick = 0, kickV = 0, seenKey = 0, wagPhase = 0;
 let nextDizzy = 0, dizzyStart = -10000; // pupil pusing saat memerah
 
@@ -93,15 +94,33 @@ function drawEyes(t, blinkEnd) {
   T.pupil.style.transform = `translate(${pdx * S.SCALE}px, ${pdy * S.SCALE}px)`;
 }
 
-// Ekor berkibas: makin cepat mengetik, makin cepat kibasannya.
-// Saat gelembung muncul atau memerah = sama dengan mode excited (0,35 dtk, 25 derajat)
+// Ekor berkibas. Meniru mode bermain di animate.js:
+// - semangat (exc) naik/turun mulus; selama naik atau turun ekor kibas SANGAT CEPAT (burst),
+//   lalu setelah stabil kibas cepat biasa, lalu pelan lagi.
+// Fase dijumlahkan per frame (bukan dihitung dari waktu total), jadi burst-nya stabil, tidak acak.
 function drawTail(t, dt) {
   if (kps >= S.EXCITED_KPS) excitedUntil = t + S.EXCITED_HOLD_MS; // ditahan sebentar supaya tidak gonta-ganti
   const excited = frustrated || hot || t < excitedUntil;
-  const wagPeriod = tired ? 3 : excited ? 0.35 : 1.4 - 1.0 * spd;
-  const wagAmp = tired ? 5 : excited ? 25 : 10 + 12 * spd;
-  wagPhase += ((dt / 1000) * (2 * Math.PI)) / wagPeriod;
-  const wag = Math.round((Math.sin(wagPhase) * wagAmp) / 5) * 5;
+  const goal = excited ? 1 : 0;
+  exc += (goal - exc) * Math.min(1, dt / (S.EXCITED_RAMP_MS || 120));
+  const bursting = !tired && Math.abs(goal - exc) > 0.05;
+
+  const calmPeriod = 1.4 - 1.0 * spd;
+  const calmAmp = 10 + 12 * spd;
+  const fastPeriod = S.EXCITED_WAG_PERIOD || 0.35;
+  const fastAmp = S.EXCITED_WAG_AMP || 25;
+  let period = calmPeriod + (fastPeriod - calmPeriod) * exc;
+  let amp = calmAmp + (fastAmp - calmAmp) * exc;
+  if (bursting) {
+    period = S.EXCITED_BURST_PERIOD || 0.09;
+    amp = fastAmp;
+  }
+  if (tired) {
+    period = 3;
+    amp = 5;
+  }
+  wagPhase += ((dt / 1000) * (2 * Math.PI)) / period;
+  const wag = Math.round((Math.sin(wagPhase) * amp) / 5) * 5;
   S.typ.tailBox.style.transform = `rotate(${wag}deg)`;
 }
 
