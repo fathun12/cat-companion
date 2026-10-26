@@ -5,6 +5,7 @@ const S = require('./state');
 const Look = require('./look.js');
 const Scroll = require('./scroll');
 const Celebrate = require('./celebrate');
+const Drink = require('./drink');
 
 const pct = (v) => v * 100 + '%';
 
@@ -135,6 +136,7 @@ async function buildRig() {
   buildTyping();
   Scroll.buildScroll();
   Celebrate.buildCelebrate();
+  Drink.buildDrink();
 }
 
 // Garis tepi luar otomatis, warnanya mengikuti "Garis tepi" di panel kustomisasi

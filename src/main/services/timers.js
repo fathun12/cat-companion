@@ -101,7 +101,7 @@ function tick() {
   }
 
   if (!said && settings.waterMin > 0 && now >= nextWater) {
-    say('Minum air dulu yuk!', 'hop');
+    say('Minum air dulu yuk!', 'drink');
     nextWater = now + settings.waterMin * 60000;
   }
 

@@ -3,6 +3,7 @@ const { rand, spring, setSleep, spawnLove } = require('./actions');
 const Scroll = require('./scroll');
 const Typing = require('./typing');
 const Celebrate = require('./celebrate');
+const Drink = require('./drink');
 
 // Variabel yang hanya dipakai di loop animasi
 let prevT = 0;
@@ -67,7 +68,7 @@ function frame(t) {
   const bodyDeg = (bx / SCALE) * 2 + wigDeg;
   const carry = (S.FEET_Y - 0.4) * stage.offsetHeight * Math.sin((bodyDeg * Math.PI) / 180);
   groups.head.style.transform =
-    `translate(${Math.round(fx + shake + carry)}px, ${Math.round(fy + drop + crouchPx + breath * SCALE)}px) rotate(${headTilt}deg)`;
+    `translate(${Math.round(fx + shake + carry)}px, ${Math.round(fy + drop + crouchPx + breath * SCALE + Drink.dip(t))}px) rotate(${headTilt}deg)`;
   groups.body.style.transform = `rotate(${bodyDeg}deg)`;
 
   // ----- Ekor goyang, bertahap per 5 derajat supaya terasa pixel art -----
@@ -118,21 +119,24 @@ function frame(t) {
 
   // ----- Pose perayaan (celebrate.js) menimpa pose lain selama berlangsung -----
   const celebrating = Celebrate.isActive(t) && !S.dragging;
+  // ----- Pose minum (drink.js): kucing idle + mangkuk, menimpa pose mengetik dan scroll -----
+  const drinking = Drink.isActive(t) && !S.dragging && !S.sleeping && !celebrating;
   // ----- Pose mengetik (logika di typing.js) menggantikan kucing biasa -----
   let showTyping = Typing.update(t, dt, breath, blinkEnd);
-  if (celebrating) {
+  if (celebrating || drinking) {
     showTyping = false;
     S.typ.box.style.display = 'none';
     S.angryImgs.forEach((img) => (img.style.display = 'none'));
   }
   // Pose scroll: tampil kalau baru scroll dan tidak sedang mengetik
   const showScroll =
-    !celebrating && !showTyping && !S.sleeping && !S.dragging && t - S.lastScroll < S.SCROLL_HOLD_MS;
+    !celebrating && !drinking && !showTyping && !S.sleeping && !S.dragging && t - S.lastScroll < S.SCROLL_HOLD_MS;
   for (const id in groups) {
     groups[id].style.display = showTyping || showScroll || celebrating ? 'none' : '';
   }
   Scroll.update(t, dt, showScroll, breath);
   Celebrate.update(t, dt, celebrating, breath);
+  Drink.update(t, drinking);
 
   // ----- Tidur kalau lama tidak ada aktivitas -----
   if (!S.sleeping && t - S.lastActivity > S.SLEEP_AFTER_MS) setSleep(true);

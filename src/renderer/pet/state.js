@@ -51,6 +51,12 @@ const S = {
   CELEBRATE_HOPS: 3, // jumlah lompatan
   CELEBRATE_HOP_PX: 4, // tinggi lompatan (piksel gambar)
   CELEBRATE_SHIFT_Y: 0, // geser pose perayaan (piksel gambar, negatif = naik)
+
+  // ----- Pose minum (pengingat minum) -----
+  DRINK_DELAY_MS: 700, // jeda dari munculnya pesan sampai kucing mulai minum
+  DRINK_MS: 6000, // lama total pose minum
+  DRINK_BOB_MS: 600, // lama satu siklus kepala turun-naik (setengahnya turun, lidah keluar)
+  DRINK_DIP_PX: 2, // seberapa turun kepala (piksel gambar)
   cel: null, // layer pose perayaan (diisi buildCelebrate)
   scr: null, // layer pose scroll (diisi buildScroll)
   lastScroll: -10000,
