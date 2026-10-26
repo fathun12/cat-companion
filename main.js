@@ -233,6 +233,21 @@ app.whenReady().then(() => {
     if (win && !win.isDestroyed()) win.webContents.send('look', look);
   });
 
+  // Preset buatan pemilik, disimpan di presets.json
+  const presetsFile = path.join(app.getPath('userData'), 'presets.json');
+  ipcMain.handle('presets-get', () => {
+    try {
+      return JSON.parse(fs.readFileSync(presetsFile, 'utf8'));
+    } catch (e) {
+      return [];
+    }
+  });
+  ipcMain.on('presets-set', (event, list) => {
+    try {
+      fs.writeFileSync(presetsFile, JSON.stringify(list));
+    } catch (e) {}
+  });
+
   // Jendela kustomisasi (dibuka dari menu klik kanan atau tray)
   let panel = null;
   const openPanel = () => {
@@ -241,8 +256,8 @@ app.whenReady().then(() => {
       return;
     }
     panel = new BrowserWindow({
-      width: 480,
-      height: 700,
+      width: 800,
+      height: 780,
       title: 'Kustomisasi Kucing',
       autoHideMenuBar: true,
       webPreferences: { nodeIntegration: true, contextIsolation: false },

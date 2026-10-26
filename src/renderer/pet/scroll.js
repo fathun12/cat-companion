@@ -178,6 +178,8 @@ function buildScroll() {
 function applyLook(urls, look) {
   A.look = look;
   drawClosed();
+  A.img.mata.src = urls.s_mata; // warna mata dari panel
+  A.img.pupil.src = urls.s_pupil;
   A.img.ekor.src = urls.s_ekor;
   A.img.badan.src = urls.s_badan;
   A.img.tangan_kiri.src = urls.s_tangan_kiri;

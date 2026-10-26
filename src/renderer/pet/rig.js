@@ -166,6 +166,8 @@ async function applyLook(look) {
   T.kepala.src = urls.t_kepala;
   T.kepalaH.src = urls.t_kepala_H;
   T.closed.src = await Look.closedEyes(look);
+  T.mata.src = urls.t_mata; // warna mata dari panel
+  T.pupil.src = urls.t_pupil;
 
   Scroll.applyLook(urls, look); // pose scroll ikut warna dan pola yang sama
   setOutline(look);

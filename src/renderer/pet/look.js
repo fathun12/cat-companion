@@ -25,8 +25,28 @@ const SRC = {
   s_tangan_kanan: 'cat/scroll/tangan_kanan.png',
   s_kaki_kiri: 'cat/scroll/kaki_kiri.png',
   s_kaki_kanan: 'cat/scroll/kaki_kanan.png',
+  // mata: hanya diwarnai kalau warnanya diatur di panel
+  mata: 'cat/eyes/mata.png',
+  pupil: 'cat/eyes/pupil.png',
+  t_mata: 'cat/typing/mata.png',
+  t_pupil: 'cat/typing/pupil.png',
+  s_mata: 'cat/scroll/mata.png',
+  s_pupil: 'cat/scroll/pupil.png',
 };
 const RECOLOR = Object.keys(SRC);
+const EYE = new Set(['mata', 'pupil', 't_mata', 't_pupil', 's_mata', 's_pupil']);
+
+// Editor pola: layer mana memakai kisi bagian mana (kuping dibagi dua: kiri dan kanan)
+const PART_OF = {
+  badan: 'body', click1: 'body', click2: 'body', s_badan: 'body',
+  kepala: 'head', t_kepala: 'head', s_kepala: 'head',
+  kuping: 'ears', t_kuping: 'ears', s_kuping: 'ears',
+  ekor: 'tail', t_ekor: 'tail', s_ekor: 'tail',
+  tangan: 'arm', s_tangan_kiri: 'arm', s_tangan_kanan: 'arm',
+  s_kaki_kiri: 'foot', s_kaki_kanan: 'foot',
+};
+// Ukuran kisi = ukuran kotak pembatas layer acuan ini
+const GRID_REF = { body: 'badan', head: 'kepala', ears: 'kuping', tail: 'ekor', arm: 'tangan', foot: 's_kaki_kiri' };
 
 // Layer pose mengetik memakai pola yang sama dengan layer idle-nya.
 // Layer di daftar ini juga dibuatkan versi merah (hasilnya diberi akhiran _H).
@@ -126,12 +146,15 @@ async function getSource(id) {
 
 // Mengembalikan { badan: dataURL, kepala: dataURL, click1: ..., click1_H: ... } yang sudah diwarnai.
 // Akhiran _H = versi merah (mode panas), hanya untuk layer pose mengetik.
-async function recolorAll(look) {
+async function recolorAll(look, ids) {
   const body = hex(look.body);
   const outline = hex(look.outline);
-  const cols = [body, hex(look.p1), hex(look.p2)];
+  const grid = !!look.parts; // true = pola dari editor piksel; false = look.json lama (pola rumus)
+  const cols = grid ? null : [body, hex(look.p1), hex(look.p2)];
   const fn = PATTERNS[look.pattern] || PATTERNS.polos;
   const RED = [235, 45, 45];
+  const hexCache = {};
+  const hx = (s) => hexCache[s] || (hexCache[s] = hex(s));
 
   // Garis tepi jadi merah, badan gelap tetap gelap, badan terang sedikit memerah
   const warm = (c) => {
@@ -149,12 +172,39 @@ async function recolorAll(look) {
   };
   const out = {};
 
-  for (const id of RECOLOR) {
+  for (const id of ids || RECOLOR) {
     const pid = PID[id] || id; // nama pola yang dipakai
     const src = await getSource(id);
     const w = src.width;
     const h = src.height;
     const bb = src.bb;
+
+    // Mata: hanya diwarnai kalau warnanya diatur; selain itu dibiarkan asli
+    if (EYE.has(id)) {
+      const bg = id.endsWith('mata');
+      const c1 = bg ? look.eyeBg : look.eyeColor;
+      const c2 = bg ? c1 : look.odd ? look.eyeColor2 || c1 : c1;
+      const eimg = new ImageData(new Uint8ClampedArray(src.data), w, h);
+      if (c1 || c2) {
+        const e = eimg.data;
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const i = (y * w + x) * 4;
+            if (e[i + 3] === 0) continue;
+            const L = e[i] * 0.3 + e[i + 1] * 0.59 + e[i + 2] * 0.11;
+            if (bg ? L <= 215 : L > 215) continue; // latar mata: hanya bagian putih; pupil: bukan bagian putih
+            const col = x - bb.minX + 0.5 < bb.w / 2 ? c1 : c2; // kiri atau kanan
+            if (!col) continue;
+            const rgb = hx(col);
+            e[i] = rgb[0];
+            e[i + 1] = rgb[1];
+            e[i + 2] = rgb[2];
+          }
+        }
+      }
+      out[id] = toUrl(eimg);
+      continue;
+    }
     const img = new ImageData(new Uint8ClampedArray(src.data), w, h);
     const imgH = PID[id] ? new ImageData(new Uint8ClampedArray(src.data), w, h) : null;
     const d = img.data;
@@ -165,7 +215,14 @@ async function recolorAll(look) {
         if (d[i + 3] === 0) continue;
         const L = d[i] * 0.3 + d[i + 1] * 0.59 + d[i + 2] * 0.11;
         let c;
-        if (L < 40) c = cols[fn(pid, x - bb.minX, y - bb.minY, bb.w, bb.h)];
+        if (L < 40) {
+          if (grid) {
+            const pc = patColor(look, id, x - bb.minX, y - bb.minY, bb.w, bb.h);
+            c = pc ? hx(pc) : body;
+          } else {
+            c = cols[fn(pid, x - bb.minX, y - bb.minY, bb.w, bb.h)];
+          }
+        }
         else if (L > 215) c = outline;
         else if (KEEP_MID.has(id)) continue; // papan ketik: tidak diwarnai
         else c = body.map((v, k) => v + (outline[k] - v) * (L / 255));
@@ -232,8 +289,8 @@ async function closedEyes(look) {
 // Gambar kucing utuh (untuk pratinjau di panel)
 async function composite(look) {
   const rig = JSON.parse(fs.readFileSync(path.join(ASSETS, 'cat', 'rig.json'), 'utf8'));
-  const urls = await recolorAll(look);
   const layers = rig.layers.filter((l) => l.id !== 'mata_tidur');
+  const urls = await recolorAll(look, layers.map((l) => l.id).filter((id) => RECOLOR.includes(id)));
   const imgs = await Promise.all(
     layers.map((l) => loadImage(RECOLOR.includes(l.id) ? urls[l.id] : dataUrl('cat/' + l.file)))
   );
@@ -245,4 +302,96 @@ async function composite(look) {
   return c;
 }
 
-module.exports = { PRESETS, recolorAll, closedEyes, composite };
+// ===== Editor pola piksel =====
+const PART_KEYS = ['earL', 'earR', 'head', 'body', 'arm', 'foot', 'tail'];
+
+// Warna kisi untuk satu piksel di satu layer; null = pakai warna badan.
+// Posisi dipetakan relatif ke kotak pembatas layer, jadi pola ikut ke semua pose.
+function patColor(look, id, xRel, yRel, bw, bh) {
+  const kind = PART_OF[id];
+  if (!kind) return null;
+  let key = kind;
+  let segW = bw;
+  let xl = xRel;
+  if (kind === 'ears') {
+    const half = Math.ceil(bw / 2);
+    if (xRel + 0.5 < bw / 2) key = 'earL';
+    else {
+      key = 'earR';
+      xl = xRel - (bw - half);
+    }
+    segW = half;
+  }
+  const g = look.parts[key];
+  if (!g || !g.px) return null;
+  const gx = Math.min(g.w - 1, Math.max(0, Math.floor(((xl + 0.5) / segW) * g.w)));
+  const gy = Math.min(g.h - 1, Math.max(0, Math.floor(((yRel + 0.5) / bh) * g.h)));
+  return g.px[gy * g.w + gx] || null;
+}
+
+// Ukuran kisi tiap bagian (piksel), dari layer acuan
+async function gridDims() {
+  const s = {};
+  for (const k of Object.keys(GRID_REF)) s[k] = (await getSource(GRID_REF[k])).bb;
+  const earW = Math.ceil(s.ears.w / 2);
+  return {
+    earL: { w: earW, h: s.ears.h },
+    earR: { w: earW, h: s.ears.h },
+    head: { w: s.head.w, h: s.head.h },
+    body: { w: s.body.w, h: s.body.h },
+    arm: { w: s.arm.w, h: s.arm.h },
+    foot: { w: s.foot.w, h: s.foot.h },
+    tail: { w: s.tail.w, h: s.tail.h },
+  };
+}
+
+// Bentuk tiap bagian untuk editor: kecerahan tiap sel (-1 = kosong)
+async function silhouette() {
+  const dims = await gridDims();
+  const out = {};
+  for (const key of PART_KEYS) {
+    const ref = key === 'earL' || key === 'earR' ? 'kuping' : GRID_REF[key];
+    const src = await getSource(ref);
+    const { w, h } = dims[key];
+    const ox = src.bb.minX + (key === 'earR' ? src.bb.w - w : 0);
+    const L = [];
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = ((src.bb.minY + y) * src.width + (ox + x)) * 4;
+        const d = src.data;
+        L.push(d[i + 3] === 0 ? -1 : d[i] * 0.3 + d[i + 1] * 0.59 + d[i + 2] * 0.11);
+      }
+    }
+    out[key] = { w, h, L };
+  }
+  return out;
+}
+
+// Membuat tampilan berisi kisi dari preset lama (nama preset atau objek look.json lama)
+const LEGACY_ID = { earL: 'kuping', earR: 'kuping', head: 'kepala', body: 'badan', arm: 'tangan', foot: 'tangan', tail: 'ekor' };
+async function fromPreset(nameOrLook) {
+  const base = typeof nameOrLook === 'string' ? PRESETS[nameOrLook] : nameOrLook;
+  const dims = await gridDims();
+  const fn = PATTERNS[base.pattern] || PATTERNS.polos;
+  const cols = ['', base.p1 || '', base.p2 || ''];
+  const parts = {};
+  for (const key of PART_KEYS) {
+    const { w, h } = dims[key];
+    const px = [];
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) px.push(cols[fn(LEGACY_ID[key], x, y, w, h)] || '');
+    }
+    parts[key] = { w, h, px };
+  }
+  return {
+    body: base.body,
+    outline: base.outline,
+    parts,
+    eyeBg: base.eyeBg || null,
+    eyeColor: base.eyeColor || null,
+    odd: !!base.odd,
+    eyeColor2: base.eyeColor2 || null,
+  };
+}
+
+module.exports = { PRESETS, PART_KEYS, recolorAll, closedEyes, composite, gridDims, silhouette, fromPreset };
