@@ -88,7 +88,7 @@ app.whenReady().then(() => {
   // Posisi kursor relatif terhadap jendela (hanya koordinat, untuk mata kucing)
   let lastCursor = { x: -1, y: -1, bx: -1, by: -1 };
   setInterval(() => {
-    if (!win || win.isDestroyed()) return;
+    if (!win || win.isDestroyed() || !win.isVisible()) return; // kucing disembunyikan: tidak perlu
     const p = screen.getCursorScreenPoint();
     const b = win.getBounds();
     if (p.x === lastCursor.x && p.y === lastCursor.y && b.x === lastCursor.bx && b.y === lastCursor.by) return;

@@ -250,7 +250,10 @@ function frame(t) {
   stage.style.transform =
     `translateX(${hotShake}px) translateY(${ground}px) rotate(${tilt}deg) scale(${1 - S.mochi * 0.6}, ${sy})`;
 
-  requestAnimationFrame(frame);
+  // Hemat tenaga: kalau sudah tidur nyenyak, cukup gambar ulang 10x per detik
+  // (yang bergerak hanya napas dan ekor, sangat pelan)
+  if (S.sleeping && sleepAmt >= 1) setTimeout(() => requestAnimationFrame(frame), 100);
+  else requestAnimationFrame(frame);
 }
 
 function startLoop() {
