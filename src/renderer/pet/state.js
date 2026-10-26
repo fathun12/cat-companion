@@ -62,6 +62,9 @@ const S = {
   DRINK_BOB_UP_PX: 2, // seberapa naik kepala antar jilatan (piksel gambar)
   DRINK_TONGUE_Y0: 32, // baris teratas lidah di lidah.png (hasil ukur)
   DRINK_TONGUE_UP_ROWS: 1, // berapa baris lidah yang kelihatan saat kepala naik (lidah penuh = 3 baris)
+  DRINK_PUPIL_DY: 1, // pupil turun sekian piksel gambar saat minum (melihat mangkuk); 1 = batas bawah mata
+  DRINK_BLINK_MIN_MS: 1200, // jeda kedip tercepat saat minum
+  DRINK_BLINK_MAX_MS: 2800, // jeda kedip terlama saat minum
   cel: null, // layer pose perayaan (diisi buildCelebrate)
   scr: null, // layer pose scroll (diisi buildScroll)
   lastScroll: -10000,

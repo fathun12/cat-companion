@@ -96,10 +96,13 @@ function frame(t) {
   }
   parts.kuping.style.transform = `rotate(${t < earEnd ? earAngle : 0}deg)`;
 
-  // ----- Kedip -----
+  // ----- Kedip (saat minum lebih sering) -----
+  if (drinking && nextBlink > t + S.DRINK_BLINK_MAX_MS) {
+    nextBlink = t + rand(S.DRINK_BLINK_MIN_MS, S.DRINK_BLINK_MAX_MS);
+  }
   if (t >= nextBlink) {
     blinkEnd = t + 160;
-    nextBlink = t + rand(2500, 6000);
+    nextBlink = t + (drinking ? rand(S.DRINK_BLINK_MIN_MS, S.DRINK_BLINK_MAX_MS) : rand(2500, 6000));
   }
   const closed = S.sleeping || S.purring || t < blinkEnd;
   parts.mata.style.display = closed ? 'none' : '';
@@ -117,7 +120,7 @@ function frame(t) {
   let ey = 0;
   if (drinking) {
     ex = 0;
-    ey = 0;
+    ey = S.DRINK_PUPIL_DY; // melihat mangkuk
   } else if (typing) {
     ey = 1;
   } else if (following) {
