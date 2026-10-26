@@ -31,9 +31,10 @@ const S = {
   // ----- Pose scroll (kucing menarik gulungan tisu) -----
   SCROLL_HOLD_MS: 1400, // pose scroll bertahan sekian ms setelah scroll terakhir
   SCROLL_SHIFT_Y: 0, // geser pose scroll (piksel gambar, negatif = naik) supaya lantainya sejajar
-  TISSUE_STRIP: true, // false = tanpa kertas tisu yang memanjang
-  STRIP_STEP: 2, // kertas memanjang sekian piksel gambar tiap event scroll
-  STRIP_MAX: 10, // panjang maksimal kertas (piksel gambar)
+  TISSUE_LINES: true, // false = tanpa garis tisu yang meluncur turun
+  LINE_TRAVEL: 9, // jarak garis turun (piksel gambar)
+  LINE_MS: 700, // lama satu garis turun sampai hilang
+  SCROLL_BUBBLES: ['effects/gelembung2.png', 'effects/gelembung4.png'], // gelembung saat scroll, bergantian; [] = tanpa gelembung
   scr: null, // layer pose scroll (diisi buildScroll)
   lastScroll: -10000,
   scrollTick: 0,

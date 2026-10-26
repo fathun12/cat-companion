@@ -34,7 +34,9 @@ const kick = [0, 0]; // 0 = tangan kiri, 1 = tangan kanan
 const kickV = [0, 0];
 let seenTick = 0;
 let wagPhase = 0;
-let stripLen = 0;
+let nextBlink = 1500, blinkEnd = 0;
+let liveLines = 0;
+const rand = (a, b) => a + Math.random() * (b - a);
 
 // Cari kotak pembatas gulungan di tisu.png, untuk menentukan asal kertas tisu
 function measureRoll() {
@@ -71,6 +73,59 @@ function measureRoll() {
   img.src = 'data:image/png;base64,' + fs.readFileSync(file).toString('base64');
 }
 
+// Cari bentuk tiap mata di mata.png (satu gumpalan per mata) untuk membuat mata tertutup
+function measureEyes() {
+  const img = new Image();
+  img.onload = () => {
+    const w = img.naturalWidth;
+    const h = img.naturalHeight;
+    const c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const d = ctx.getImageData(0, 0, w, h).data;
+    const boxes = [];
+    let cur = null;
+    for (let x = 0; x <= w; x++) {
+      let minY = h, maxY = -1;
+      if (x < w) {
+        for (let y = 0; y < h; y++) {
+          if (d[(y * w + x) * 4 + 3] > 0) {
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+          }
+        }
+      }
+      if (maxY >= 0) {
+        if (!cur) cur = { x1: x, x2: x, y1: minY, y2: maxY };
+        cur.x2 = x;
+        cur.y1 = Math.min(cur.y1, minY);
+        cur.y2 = Math.max(cur.y2, maxY);
+      } else if (cur) {
+        boxes.push(cur);
+        cur = null;
+      }
+    }
+    A.eyes = { w, h, boxes };
+    drawClosed();
+  };
+  img.src = 'data:image/png;base64,' + fs.readFileSync(path.join(DIR, 'mata.png')).toString('base64');
+}
+
+// Mata tertutup = garis tipis setinggi 1 piksel di tengah tiap mata
+function drawClosed() {
+  if (!A.eyes || !A.look) return;
+  const { w, h, boxes } = A.eyes;
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = A.look.outline || '#ffffff';
+  for (const b of boxes) ctx.fillRect(b.x1, Math.round((b.y1 + b.y2) / 2), b.x2 - b.x1 + 1, 1);
+  A.img.closed.src = c.toDataURL();
+}
+
 function buildScroll() {
   A = { img: {}, roll: null };
   S.scr = A;
@@ -78,13 +133,6 @@ function buildScroll() {
   A.box = mkDiv(S.stage);
   A.box.style.display = 'none';
   A.box.style.transform = `translateY(${S.SCROLL_SHIFT_Y * S.SCALE}px)`;
-
-  // Kertas tisu (digambar lewat kode), paling bawah
-  A.strip = document.createElement('div');
-  A.strip.style.cssText =
-    'position:absolute;display:none;background:#fff;box-sizing:border-box;pointer-events:none;' +
-    `border:${S.SCALE}px solid #333;border-top:none;`;
-  A.box.appendChild(A.strip);
 
   A.img.tisu = mkImg('tisu.png');
   A.box.appendChild(A.img.tisu);
@@ -110,12 +158,31 @@ function buildScroll() {
     A.img[id] = mkImg(id + '.png'); // tidak diwarnai ulang
     A.headBox.appendChild(A.img[id]);
   }
+  // Mata tertutup (digambar lewat kode dari bentuk mata.png, dipakai saat kedip)
+  A.img.closed = mkImg();
+  A.img.closed.style.display = 'none';
+  A.headBox.appendChild(A.img.closed);
+
+  // Garis tisu yang meluncur dan gelembung: lapisan paling atas
+  A.fx = mkDiv(A.box);
+  A.bubbles = (S.SCROLL_BUBBLES || []).map((f) => {
+    const img = new Image();
+    img.className = 'layer';
+    img.draggable = false;
+    img.src = S.BASE + f;
+    img.style.display = 'none';
+    A.fx.appendChild(img);
+    return img;
+  });
 
   measureRoll();
+  measureEyes();
 }
 
 // Dipanggil dari rig.js setiap warna atau pola berubah
-function applyLook(urls) {
+function applyLook(urls, look) {
+  A.look = look;
+  drawClosed();
   A.img.ekor.src = urls.s_ekor;
   A.img.badan.src = urls.s_badan;
   A.img.tangan_kiri.src = urls.s_tangan_kiri;
@@ -126,13 +193,43 @@ function applyLook(urls) {
   A.img.kepala.src = urls.s_kepala;
 }
 
+// Garis tisu: beberapa garis vertikal kecil meluncur turun dari gulungan, muncul lalu memudar
+function spawnLines() {
+  const R = A.roll;
+  if (!S.TISSUE_LINES || !R || liveLines > 14) return;
+  const SC = S.SCALE;
+  const n = R.w >= 5 ? 3 : R.w >= 3 ? 2 : 1;
+  const travel = S.LINE_TRAVEL * SC;
+  for (let i = 0; i < n; i++) {
+    const x = n === 1 ? R.left + (R.w - 1) / 2 : R.left + (i * (R.w - 1)) / (n - 1);
+    const line = document.createElement('div');
+    line.style.cssText =
+      'position:absolute;pointer-events:none;background:#fff;opacity:0;' +
+      `left:${Math.round(x) * SC}px;top:${R.top * SC}px;width:${SC}px;height:${3 * SC}px;` +
+      'box-shadow:0 0 0 1px #333;';
+    A.fx.appendChild(line);
+    liveLines++;
+    line
+      .animate(
+        [
+          { transform: 'translateY(0px)', opacity: 0 },
+          { transform: `translateY(${travel * 0.3}px)`, opacity: 1, offset: 0.3 },
+          { transform: `translateY(${travel * 0.7}px)`, opacity: 1, offset: 0.65 },
+          { transform: `translateY(${travel}px)`, opacity: 0 },
+        ],
+        { duration: S.LINE_MS, delay: Math.round(rand(0, 120)), easing: 'steps(7)' }
+      )
+      .addEventListener('finish', () => {
+        line.remove();
+        liveLines--;
+      });
+  }
+}
+
 function update(t, dt, active, breath) {
   if (!A) return;
   A.box.style.display = active ? '' : 'none';
-  if (!active) {
-    stripLen = 0;
-    return;
-  }
+  if (!active) return;
   const sec = Math.min(dt, 50) / 1000;
   const SC = S.SCALE;
 
@@ -140,7 +237,7 @@ function update(t, dt, active, breath) {
   if (S.scrollTick !== seenTick) {
     seenTick = S.scrollTick;
     kickV[S.scrollFrame] += 26;
-    stripLen = Math.min(S.STRIP_MAX, stripLen + S.STRIP_STEP);
+    spawnLines();
   }
   for (let i = 0; i < 2; i++) {
     [kick[i], kickV[i]] = spring(kick[i], kickV[i], 0, 260, 14, sec);
@@ -159,20 +256,19 @@ function update(t, dt, active, breath) {
   const wag = Math.round((Math.sin(wagPhase) * 10) / 5) * 5;
   A.tailBox.style.transform = `rotate(${wag}deg)`;
 
-  // Kertas tisu: memanjang saat scroll, memendek pelan saat berhenti
-  stripLen = Math.max(0, stripLen - dt * 0.003);
-  const R = A.roll;
-  const len = R ? Math.min(Math.round(stripLen), R.size - R.top - 1) : 0;
-  const st = A.strip.style;
-  if (S.TISSUE_STRIP && R && len >= 1) {
-    st.display = '';
-    st.left = R.left * SC + 'px';
-    st.top = R.top * SC + 'px';
-    st.width = R.w * SC + 'px';
-    st.height = len * SC + 'px';
-  } else {
-    st.display = 'none';
+  // Kedip
+  if (t >= nextBlink) {
+    blinkEnd = t + 160;
+    nextBlink = t + rand(2500, 6000);
   }
+  const shut = t < blinkEnd && !!A.img.closed.src;
+  A.img.mata.style.display = shut ? 'none' : '';
+  A.img.pupil.style.display = shut ? 'none' : '';
+  A.img.closed.style.display = shut ? '' : 'none';
+
+  // Gelembung bergantian tiap 0,4 detik
+  const bp = Math.floor(t / 400) % Math.max(1, A.bubbles.length);
+  A.bubbles.forEach((img, i) => (img.style.display = i === bp ? '' : 'none'));
 }
 
 module.exports = { buildScroll, applyLook, update };

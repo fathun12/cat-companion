@@ -366,6 +366,6 @@ Kemungkinan masalah:
 
 - Aset di `assets/cat/scroll/` (48x48, disalin dari art pemilik; `pupi.png` diganti jadi `pupil.png`): `tisu`, `ekor`, `badan`, `tangan_kiri`, `tangan_kanan`, `kaki_kiri`, `kaki_kanan`, `kuping`, `kepala`, `kumis`, `mata`, `pupil`.
 - Kode: `src/renderer/pet/scroll.js` (`buildScroll`, `applyLook`, `update`). Dipanggil dari `rig.js` (build dan warna) dan `animate.js` (tampil kalau `t - S.lastScroll < SCROLL_HOLD_MS` dan tidak sedang mengetik).
-- Event `scroll` di `input.js` menaikkan `S.scrollTick` dan menukar `S.scrollFrame` (tangan kiri/kanan bergantian). Kertas tisu digambar lewat kode dari bawah gulungan (posisi dibaca dari `tisu.png`), bisa dimatikan dengan `TISSUE_STRIP: false`.
+- Event `scroll` di `input.js` menaikkan `S.scrollTick` dan menukar `S.scrollFrame` (tangan kiri/kanan bergantian). Efek tisu: garis vertikal kecil meluncur turun dari bawah gulungan (posisi dibaca dari `tisu.png`) lalu memudar, dimunculkan tiap event scroll (`TISSUE_LINES`, `LINE_TRAVEL`, `LINE_MS` di `state.js`). Pose scroll juga berkedip (mata tertutup digambar lewat kode dari bentuk `scroll/mata.png`) dan menampilkan gelembung bergantian dari daftar `SCROLL_BUBBLES` (sementara `gelembung2` dan `gelembung4`).
 - Layer pose scroll diwarnai lewat `look.js` (`s_*` di `SRC` dan `PID`; kaki dan tangan memakai pola `tangan`). Kumis, mata, pupil tidak diwarnai.
 - Catatan untuk AI penerus: logika pose mengetik masih ada di `animate.js`; sebaiknya dipindah ke modul sendiri seperti `scroll.js`.

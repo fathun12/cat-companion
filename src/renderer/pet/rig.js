@@ -153,7 +153,7 @@ async function applyLook(look) {
   T.kepalaH.src = urls.t_kepala_H;
   T.closed.src = await Look.closedEyes(look);
 
-  Scroll.applyLook(urls); // pose scroll ikut warna dan pola yang sama
+  Scroll.applyLook(urls, look); // pose scroll ikut warna dan pola yang sama
 }
 
 // Terapkan tampilan tersimpan, lalu dengarkan perubahan dari panel kustomisasi
